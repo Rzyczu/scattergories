@@ -23,6 +23,15 @@ public class Client {
             System.out.println("Połączono z serwerem.");
             System.out.println("Serwer: " + in.readLine());
 
+            // Request user for nickname
+            System.out.print("Podaj swój pseudonim: ");
+            String nickname = scanner.nextLine();
+            out.println(nickname);
+
+            // Read and print the server's welcome message
+            String welcomeMessage = in.readLine();
+            System.out.println("Serwer: " + welcomeMessage);
+
             MenuSystem menuSystem = new MenuSystem(in, out);
             menuSystem.run();
 

@@ -1,4 +1,3 @@
-// server: Server.java (modification)
 package org.example;
 
 import java.io.BufferedReader;
@@ -33,6 +32,7 @@ public class Server {
 
     private static class ClientHandler extends Thread {
         private final Socket clientSocket;
+        private Player player;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
@@ -44,30 +44,36 @@ public class Server {
                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
             ) {
-                out.println("Witaj na serwerze!");
+                // Request and set nickname
+                out.println("Proszę podać swój pseudonim:");
+                String nickname = in.readLine();
+                String ip = clientSocket.getInetAddress().toString();
+                player = new Player(nickname, ip);
+
+                // Welcome the player
+                out.println("Witaj, " + player.getNickname() + "!");
 
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
-                    System.out.println("Otrzymano: " + inputLine);
+                    System.out.println("Otrzymano od " + player.getNickname() + ": " + inputLine);
 
                     if ("exit".equalsIgnoreCase(inputLine)) {
                         out.println("Zamykanie połączenia...");
                         break;
                     } else if (inputLine.startsWith("New Game: Close")) {
                         // Create a new closed game
-                        String host = clientSocket.getInetAddress().toString();
-                        Game newGame = new Game(host);
+                        Game newGame = new Game(player.getNickname());
                         activeGames.put(newGame.getId(), newGame);
 
                         // Send the generated code to the client
                         out.println("Kod gry: " + newGame.getCode());
-                        System.out.println("Stworzono nową grę z kodem: " + newGame.getCode());
+                        System.out.println("Stworzono nową grę z kodem: " + newGame.getCode() + " przez " + player.getNickname());
                     } else {
                         out.println("Serwer otrzymał: " + inputLine);
                     }
                 }
 
-                System.out.println("Zamykam połączenie z klientem: " + clientSocket.getInetAddress());
+                System.out.println("Zamykam połączenie z klientem: " + player.getNickname());
             } catch (IOException e) {
                 System.err.println("Błąd w komunikacji z klientem: " + e.getMessage());
             } finally {

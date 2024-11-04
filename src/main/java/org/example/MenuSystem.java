@@ -66,7 +66,7 @@ public class MenuSystem {
         } else if (gameType.equals("2")) {
             out.println("New Game: Close");
             try {
-                String gameCode = in.readLine(); // Read the generated game code
+                String gameCode = in.readLine();
                 System.out.println("Kod gry: " + gameCode);
             } catch (IOException e) {
                 System.err.println("Błąd podczas odczytu kodu gry: " + e.getMessage());

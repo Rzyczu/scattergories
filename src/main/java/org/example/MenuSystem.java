@@ -3,6 +3,7 @@ package org.example;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.util.Scanner;
+import java.io.IOException;
 
 public class MenuSystem {
 
@@ -64,11 +65,17 @@ public class MenuSystem {
             System.out.println("You are in the Lobby (Open Game).");
         } else if (gameType.equals("2")) {
             out.println("New Game: Close");
-            System.out.println("You are in the Lobby (Close Game).");
+            try {
+                String gameCode = in.readLine(); // Read the generated game code
+                System.out.println("Kod gry: " + gameCode);
+            } catch (IOException e) {
+                System.err.println("Błąd podczas odczytu kodu gry: " + e.getMessage());
+            }
         } else {
             System.out.println("Nieprawidłowy wybór.");
         }
     }
+
 
     private void handleJoinGame() {
         System.out.println("Join to Game:");

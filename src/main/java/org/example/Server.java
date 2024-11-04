@@ -1,3 +1,4 @@
+// server: Server.java (modification)
 package org.example;
 
 import java.io.BufferedReader;
@@ -6,10 +7,13 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Server {
 
     private static final int PORT = 12345;
+    private static final Map<String, Game> activeGames = new HashMap<>();
 
     public static void main(String[] args) {
         System.out.println("Serwer uruchomiony, nasłuchuje na porcie: " + PORT);
@@ -45,11 +49,21 @@ public class Server {
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
                     System.out.println("Otrzymano: " + inputLine);
-                    out.println("Serwer otrzymał: " + inputLine);
 
                     if ("exit".equalsIgnoreCase(inputLine)) {
                         out.println("Zamykanie połączenia...");
                         break;
+                    } else if (inputLine.startsWith("New Game: Close")) {
+                        // Create a new closed game
+                        String host = clientSocket.getInetAddress().toString();
+                        Game newGame = new Game(host);
+                        activeGames.put(newGame.getId(), newGame);
+
+                        // Send the generated code to the client
+                        out.println("Kod gry: " + newGame.getCode());
+                        System.out.println("Stworzono nową grę z kodem: " + newGame.getCode());
+                    } else {
+                        out.println("Serwer otrzymał: " + inputLine);
                     }
                 }
 

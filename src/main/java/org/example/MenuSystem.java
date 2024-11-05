@@ -73,13 +73,26 @@ public class MenuSystem {
     }
 
     private void handleJoinGame() {
-        System.out.print("Podaj kod gry: ");
-        String gameCode = scanner.nextLine();
+        System.out.println("Dołącz do gry:");
+        System.out.println("1. Random Game");
+        System.out.println("2. Enter by Code");
+        System.out.print("Wybierz opcję (1 lub 2): ");
+        String joinChoice = scanner.nextLine();
 
-        JsonObject request = new JsonObject();
-        request.addProperty("action", "join_game");
-        request.addProperty("game_code", gameCode);
-        out.println(gson.toJson(request));
+        if (joinChoice.equals("1")) {
+            JsonObject request = new JsonObject();
+            request.addProperty("action", "join_game_random");
+            out.println(gson.toJson(request));
+        } else if (joinChoice.equals("2")) {
+            System.out.print("Podaj kod gry: ");
+            String gameCode = scanner.nextLine();
+            JsonObject request = new JsonObject();
+            request.addProperty("action", "join_game_by_code");
+            request.addProperty("game_code", gameCode);
+            out.println(gson.toJson(request));
+        } else {
+            System.out.println("Nieprawidłowy wybór.");
+        }
     }
 
     private void sendExitRequest() {

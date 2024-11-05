@@ -9,13 +9,13 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class Server {
 
     private static final int PORT = 12345;
     private static final Map<String, Game> activeGames = new HashMap<>();
+    private static final List<Game> openGames = new ArrayList<>();
     private static final Gson gson = new Gson();
 
     public static void main(String[] args) {
@@ -64,8 +64,11 @@ public class Server {
                         case "create_game":
                             handleCreateGame(jsonInput, out);
                             break;
-                        case "join_game":
-                            handleJoinGame(jsonInput, out);
+                        case "join_game_random":
+                            handleJoinRandomGame(out);
+                            break;
+                        case "join_game_by_code":
+                            handleJoinGameByCode(jsonInput, out);
                             break;
                         case "exit":
                             out.println("Zamykanie połączenia...");
@@ -92,7 +95,11 @@ public class Server {
             currentGame = new Game(player.getNickname());
 
             if (currentGame.addPlayer(player)) {
-                activeGames.put(currentGame.getId(), currentGame);
+                activeGames.put(currentGame.getCode(), currentGame);
+                if ("open".equalsIgnoreCase(gameType)) {
+                    openGames.add(currentGame);
+                }
+
                 out.println("Stworzono nową grę (" + gameType + ") z kodem: " + currentGame.getCode());
                 out.println("Przeniesiono do Lobby. Czekaj na innych graczy...");
                 System.out.println("Gra utworzona przez " + player.getNickname() + " z kodem: " + currentGame.getCode());
@@ -101,7 +108,21 @@ public class Server {
             }
         }
 
-        private void handleJoinGame(JsonObject jsonInput, PrintWriter out) {
+        private void handleJoinRandomGame(PrintWriter out) {
+            for (Game game : openGames) {
+                if (!game.isFull()) {
+                    game.addPlayer(player);
+                    currentGame = game;
+                    out.println("Dołączono do losowej gry: " + game.getCode());
+                    out.println("Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
+                    System.out.println(player.getNickname() + " dołączył do gry: " + game.getCode());
+                    return;
+                }
+            }
+            out.println("Brak dostępnych gier typu open. Spróbuj później.");
+        }
+
+        private void handleJoinGameByCode(JsonObject jsonInput, PrintWriter out) {
             String gameCode = jsonInput.get("game_code").getAsString();
             currentGame = activeGames.get(gameCode);
 

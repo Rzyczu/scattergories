@@ -1,40 +1,42 @@
 package org.example;
 
+import com.google.gson.JsonObject;
+import com.google.gson.Gson;
+
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.util.Scanner;
-import java.io.IOException;
 
 public class MenuSystem {
 
     private final BufferedReader in;
     private final PrintWriter out;
     private final Scanner scanner;
+    private final Gson gson = new Gson();
 
-    public MenuSystem(BufferedReader in, PrintWriter out) {
+    public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
         this.in = in;
         this.out = out;
-        this.scanner = new Scanner(System.in);
+        this.scanner = scanner;
     }
 
     public void run() {
         while (true) {
             // Display Landing Page Menu
             System.out.println("Landing Page:");
-            System.out.println("1. New Game");
-            System.out.println("2. Join to Game");
+            System.out.println("1. Stwórz grę");
+            System.out.println("2. Dołącz do gry");
             System.out.print("Wybierz opcję (1 lub 2, 'exit' aby zakończyć): ");
             String choice = scanner.nextLine();
 
             if ("exit".equalsIgnoreCase(choice)) {
-                out.println("exit");
-                System.out.println("Zamykanie połączenia...");
+                sendExitRequest();
                 break;
             }
 
             switch (choice) {
                 case "1":
-                    handleNewGame();
+                    handleCreateGame();
                     break;
                 case "2":
                     handleJoinGame();
@@ -44,7 +46,6 @@ public class MenuSystem {
             }
 
             try {
-                // Read and print server response
                 String response = in.readLine();
                 System.out.println("Serwer: " + response);
             } catch (Exception e) {
@@ -53,47 +54,32 @@ public class MenuSystem {
         }
     }
 
-    private void handleNewGame() {
-        System.out.println("New Game:");
+    private void handleCreateGame() {
+        System.out.println("Wybierz typ gry:");
         System.out.println("1. Open");
         System.out.println("2. Close");
-        System.out.print("Wybierz opcję (1 lub 2): ");
-        String gameType = scanner.nextLine();
+        System.out.print("Twój wybór: ");
+        String gameType = scanner.nextLine().equals("1") ? "open" : "close";
 
-        if (gameType.equals("1")) {
-            out.println("New Game: Open");
-            System.out.println("You are in the Lobby (Open Game).");
-        } else if (gameType.equals("2")) {
-            out.println("New Game: Close");
-            try {
-                String gameCode = in.readLine();
-                System.out.println("Kod gry: " + gameCode);
-            } catch (IOException e) {
-                System.err.println("Błąd podczas odczytu kodu gry: " + e.getMessage());
-            }
-        } else {
-            System.out.println("Nieprawidłowy wybór.");
-        }
+        JsonObject request = new JsonObject();
+        request.addProperty("action", "create_game");
+        request.addProperty("game_type", gameType);
+        out.println(gson.toJson(request));
     }
 
-
     private void handleJoinGame() {
-        System.out.println("Join to Game:");
-        System.out.println("1. Random Game");
-        System.out.println("2. Enter by Code");
-        System.out.print("Wybierz opcję (1 lub 2): ");
-        String joinType = scanner.nextLine();
+        System.out.print("Podaj kod gry: ");
+        String gameCode = scanner.nextLine();
 
-        if (joinType.equals("1")) {
-            out.println("Join: Random Game");
-            System.out.println("You are in the Lobby (Random Game).");
-        } else if (joinType.equals("2")) {
-            System.out.print("Wpisz kod gry: ");
-            String gameCode = scanner.nextLine();
-            out.println("Join: Enter by Code - " + gameCode);
-            System.out.println("You are in the Lobby (Game Code: " + gameCode + ").");
-        } else {
-            System.out.println("Nieprawidłowy wybór.");
-        }
+        JsonObject request = new JsonObject();
+        request.addProperty("action", "join_game");
+        request.addProperty("game_code", gameCode);
+        out.println(gson.toJson(request));
+    }
+
+    private void sendExitRequest() {
+        JsonObject request = new JsonObject();
+        request.addProperty("action", "exit");
+        out.println(gson.toJson(request));
     }
 }

@@ -1,5 +1,8 @@
 package org.example;
 
+import com.google.gson.JsonObject;
+import com.google.gson.Gson;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -11,6 +14,7 @@ public class Client {
 
     private static final String SERVER_ADDRESS = "localhost";
     private static final int PORT = 12345;
+    private static final Gson gson = new Gson();
 
     public static void main(String[] args) {
         System.out.println("Łączenie z serwerem na " + SERVER_ADDRESS + ":" + PORT);
@@ -24,7 +28,6 @@ public class Client {
             System.out.println("Serwer: " + in.readLine());
 
             // Request user for nickname
-            System.out.print("Podaj swój pseudonim: ");
             String nickname = scanner.nextLine();
             out.println(nickname);
 
@@ -32,7 +35,7 @@ public class Client {
             String welcomeMessage = in.readLine();
             System.out.println("Serwer: " + welcomeMessage);
 
-            MenuSystem menuSystem = new MenuSystem(in, out);
+            MenuSystem menuSystem = new MenuSystem(in, out, scanner);
             menuSystem.run();
 
         } catch (IOException e) {

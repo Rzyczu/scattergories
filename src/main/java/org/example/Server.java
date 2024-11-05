@@ -26,7 +26,6 @@ public class Server {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Nowe połączenie: " + clientSocket.getInetAddress());
 
-                // Uruchomienie nowego wątku do obsługi klienta
                 new ClientHandler(clientSocket).start();
             }
         } catch (IOException e) {
@@ -37,6 +36,7 @@ public class Server {
     private static class ClientHandler extends Thread {
         private final Socket clientSocket;
         private Player player;
+        private Game currentGame;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
@@ -48,20 +48,15 @@ public class Server {
                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
             ) {
-                // Request and set nickname
                 out.println("Proszę podać swój pseudonim:");
                 String nickname = in.readLine();
                 String ip = clientSocket.getInetAddress().toString();
                 player = new Player(nickname, ip);
 
-                // Welcome the player
                 out.println("Witaj, " + player.getNickname() + "!");
 
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
-                    System.out.println("Otrzymano od " + player.getNickname() + ": " + inputLine);
-
-                    // Parse input using Gson
                     JsonObject jsonInput = gson.fromJson(inputLine, JsonObject.class);
                     String action = jsonInput.get("action").getAsString();
 
@@ -94,21 +89,30 @@ public class Server {
 
         private void handleCreateGame(JsonObject jsonInput, PrintWriter out) {
             String gameType = jsonInput.get("game_type").getAsString();
-            Game newGame = new Game(player.getNickname());
-            activeGames.put(newGame.getId(), newGame);
+            currentGame = new Game(player.getNickname());
 
-            out.println("Stworzono nową grę (" + gameType + ") z kodem: " + newGame.getCode());
-            System.out.println("Gra utworzona przez " + player.getNickname() + " z kodem: " + newGame.getCode());
+            if (currentGame.addPlayer(player)) {
+                activeGames.put(currentGame.getId(), currentGame);
+                out.println("Stworzono nową grę (" + gameType + ") z kodem: " + currentGame.getCode());
+                out.println("Przeniesiono do Lobby. Czekaj na innych graczy...");
+                System.out.println("Gra utworzona przez " + player.getNickname() + " z kodem: " + currentGame.getCode());
+            } else {
+                out.println("Nie można utworzyć gry.");
+            }
         }
 
         private void handleJoinGame(JsonObject jsonInput, PrintWriter out) {
             String gameCode = jsonInput.get("game_code").getAsString();
-            Game game = activeGames.get(gameCode);
+            currentGame = activeGames.get(gameCode);
 
-            if (game != null) {
-                game.getPlayers().add(player.getNickname());
-                out.println("Dołączono do gry: " + gameCode);
-                System.out.println(player.getNickname() + " dołączył do gry: " + gameCode);
+            if (currentGame != null) {
+                if (currentGame.addPlayer(player)) {
+                    out.println("Dołączono do gry: " + gameCode);
+                    out.println("Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
+                    System.out.println(player.getNickname() + " dołączył do gry: " + gameCode);
+                } else {
+                    out.println("Gra jest pełna.");
+                }
             } else {
                 out.println("Gra o kodzie " + gameCode + " nie istnieje.");
             }

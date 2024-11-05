@@ -22,7 +22,6 @@ public class MenuSystem {
 
     public void run() {
         while (true) {
-            // Display Landing Page Menu
             System.out.println("Landing Page:");
             System.out.println("1. Stwórz grę");
             System.out.println("2. Dołącz do gry");
@@ -46,8 +45,14 @@ public class MenuSystem {
             }
 
             try {
-                String response = in.readLine();
-                System.out.println("Serwer: " + response);
+                String response;
+                while ((response = in.readLine()) != null) {
+                    System.out.println("Serwer: " + response);
+                    if (response.contains("Przeniesiono do Lobby")) {
+                        enterLobby();
+                        //break;
+                    }
+                }
             } catch (Exception e) {
                 System.err.println("Błąd podczas odczytu odpowiedzi od serwera: " + e.getMessage());
             }
@@ -81,5 +86,10 @@ public class MenuSystem {
         JsonObject request = new JsonObject();
         request.addProperty("action", "exit");
         out.println(gson.toJson(request));
+    }
+
+    private void enterLobby() {
+        System.out.println("Jesteś w Lobby. Oczekuj na innych graczy...");
+        // Additional logic for lobby can be added here
     }
 }

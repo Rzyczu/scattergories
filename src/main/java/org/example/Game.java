@@ -8,21 +8,21 @@ import java.util.Random;
 public class Game {
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final int CODE_LENGTH = 6;
+    private static final int MAX_PLAYERS = 6;
 
     private final String id;
-    private final LocalDateTime start_time;
-    private LocalDateTime end_time;
+    private final LocalDateTime startTime;
+    private LocalDateTime endTime;
     private final String code;
     private final String host;
-    private final List<String> players;
+    private final List<Player> players;
 
     public Game(String host) {
         this.id = generateUniqueId();
-        this.start_time = LocalDateTime.now();
+        this.startTime = LocalDateTime.now();
         this.code = generateRandomCode();
         this.host = host;
         this.players = new ArrayList<>();
-        this.players.add(host); // Add host to the list of players
     }
 
     private String generateUniqueId() {
@@ -38,17 +38,28 @@ public class Game {
         return codeBuilder.toString();
     }
 
-    // Getters
+    public boolean addPlayer(Player player) {
+        if (players.size() < MAX_PLAYERS) {
+            players.add(player);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isFull() {
+        return players.size() >= MAX_PLAYERS;
+    }
+
     public String getId() {
         return id;
     }
 
     public LocalDateTime getStartTime() {
-        return start_time;
+        return startTime;
     }
 
     public LocalDateTime getEndTime() {
-        return end_time;
+        return endTime;
     }
 
     public String getCode() {
@@ -59,12 +70,11 @@ public class Game {
         return host;
     }
 
-    public List<String> getPlayers() {
+    public List<Player> getPlayers() {
         return players;
     }
 
-    // Set end time when the game finishes
-    public void setEndTime(LocalDateTime end_time) {
-        this.end_time = end_time;
+    public void setEndTime(LocalDateTime endTime) {
+        this.endTime = endTime;
     }
 }

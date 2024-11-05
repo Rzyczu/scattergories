@@ -13,6 +13,7 @@ public class MenuSystem {
     private final PrintWriter out;
     private final Scanner scanner;
     private final Gson gson = new Gson();
+    private boolean isHost = false;
 
     public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
         this.in = in;
@@ -36,6 +37,7 @@ public class MenuSystem {
             switch (choice) {
                 case "1":
                     handleCreateGame();
+                    isHost = true;
                     break;
                 case "2":
                     handleJoinGame();
@@ -103,6 +105,11 @@ public class MenuSystem {
 
     private void enterLobby() {
         System.out.println("Jesteś w Lobby. Oczekuj na innych graczy...");
-        // Additional logic for lobby can be added here
+
+        if (isHost) {
+            System.out.println("Wpisz 'start' aby rozpocząć grę.");
+        }
+
+        System.out.println("Wpisz 'return' aby wrócić do strony startowej.");
     }
 }

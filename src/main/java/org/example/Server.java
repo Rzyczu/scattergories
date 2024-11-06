@@ -13,10 +13,12 @@ import java.util.*;
 
 public class Server {
 
-    private static final int PORT = 12345;
+    private static final int PORT = 12121;
     private static final Map<String, Game> activeGames = new HashMap<>();
     private static final List<Game> openGames = new ArrayList<>();
     private static final Gson gson = new Gson();
+
+    private static final Map<Player, PrintWriter> playerWriters = new HashMap<>();
 
     public static void main(String[] args) {
         System.out.println("Serwer uruchomiony, nasłuchuje na porcie: " + PORT);
@@ -37,6 +39,7 @@ public class Server {
         private final Socket clientSocket;
         private Player player;
         private Game currentGame;
+        private PrintWriter out;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
@@ -48,10 +51,15 @@ public class Server {
                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
             ) {
+                this.out = out;
                 out.println("Proszę podać swój pseudonim:");
                 String nickname = in.readLine();
                 String ip = clientSocket.getInetAddress().toString();
                 player = new Player(nickname, ip);
+
+                // Logowanie dla dodawania gracza
+                System.out.println("Dodano gracza: " + player.getNickname());
+                playerWriters.put(player, out);
 
                 out.println("Witaj, " + player.getNickname() + "!");
 
@@ -59,6 +67,8 @@ public class Server {
                 while ((inputLine = in.readLine()) != null) {
                     JsonObject jsonInput = gson.fromJson(inputLine, JsonObject.class);
                     String action = jsonInput.get("action").getAsString();
+
+                    System.out.println("Otrzymano akcję od klienta: " + action);
 
                     switch (action) {
                         case "create_game":
@@ -70,6 +80,9 @@ public class Server {
                         case "join_game_by_code":
                             handleJoinGameByCode(jsonInput, out);
                             break;
+                        case "leave_lobby":
+                            handleLeaveLobby();
+                            return;
                         case "exit":
                             out.println("Zamykanie połączenia...");
                             return;
@@ -83,6 +96,7 @@ public class Server {
                 System.err.println("Błąd w komunikacji z klientem: " + e.getMessage());
             } finally {
                 try {
+                    playerWriters.remove(player);
                     clientSocket.close();
                 } catch (IOException e) {
                     System.err.println("Błąd podczas zamykania połączenia: " + e.getMessage());
@@ -90,9 +104,55 @@ public class Server {
             }
         }
 
+        private void handleLeaveLobby() {
+            if (currentGame != null) {
+                currentGame.removePlayer(player);
+                System.out.println(player.getNickname() + " opuścił lobby");
+
+                // Sprawdź, czy host opuścił lobby i przypisz nowego hosta
+                if (player.equals(currentGame.getHost())) {
+                    currentGame.assignNewHost();
+                    Player newHost = currentGame.getHost();
+
+                    // Powiadom wszystkich graczy o nowym hoście
+                    for (Player p : currentGame.getPlayers()) {
+                        PrintWriter writer = getWriterForPlayer(p);
+                        if (writer != null) {
+                            if (p.equals(newHost)) {
+                                writer.println("Jesteś hostem");
+                                writer.flush();
+                                System.out.println("Wysłano do " + p.getNickname() + ": Jesteś hostem");
+                            } else {
+                                writer.println("Nowy host to: " + newHost.getNickname());
+                                writer.flush();
+                                System.out.println("Wysłano do " + p.getNickname() + ": Nowy host to " + newHost.getNickname());
+                            }
+                        } else {
+                            System.out.println("Błąd: Brak writer dla gracza " + p.getNickname());
+                        }
+                    }
+                }
+
+                // Wyświetlanie listy graczy w konsoli
+                for (Player p : currentGame.getPlayers()) {
+                    System.out.println("Gracz w grze: " + p.getNickname());
+                }
+
+                out.println("Opuszczono lobby. Powrót do strony startowej.");
+                System.out.println("Wysłano do " + player.getNickname() + ": Opuszczono lobby. Powrót do strony startowej.");
+
+                currentGame = null;
+            }
+        }
+
+
+        private PrintWriter getWriterForPlayer(Player player) {
+            return playerWriters.get(player);
+        }
+
         private void handleCreateGame(JsonObject jsonInput, PrintWriter out) {
             String gameType = jsonInput.get("game_type").getAsString();
-            currentGame = new Game(player.getNickname());
+            currentGame = new Game(player);
 
             if (currentGame.addPlayer(player)) {
                 activeGames.put(currentGame.getCode(), currentGame);
@@ -100,9 +160,9 @@ public class Server {
                     openGames.add(currentGame);
                 }
 
+                System.out.println("Gra stworzona przez " + player.getNickname());
                 out.println("Stworzono nową grę (" + gameType + ") z kodem: " + currentGame.getCode());
                 out.println("Przeniesiono do Lobby. Czekaj na innych graczy...");
-                System.out.println("Gra utworzona przez " + player.getNickname() + " z kodem: " + currentGame.getCode());
             } else {
                 out.println("Nie można utworzyć gry.");
             }

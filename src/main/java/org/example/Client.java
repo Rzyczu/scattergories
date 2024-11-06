@@ -1,8 +1,5 @@
 package org.example;
 
-import com.google.gson.JsonObject;
-import com.google.gson.Gson;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -13,8 +10,7 @@ import java.util.Scanner;
 public class Client {
 
     private static final String SERVER_ADDRESS = "localhost";
-    private static final int PORT = 12345;
-    private static final Gson gson = new Gson();
+    private static final int PORT = 12121;
 
     public static void main(String[] args) {
         System.out.println("Łączenie z serwerem na " + SERVER_ADDRESS + ":" + PORT);

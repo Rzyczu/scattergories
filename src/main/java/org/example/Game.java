@@ -14,10 +14,10 @@ public class Game {
     private final LocalDateTime startTime;
     private LocalDateTime endTime;
     private final String code;
-    private final String host;
+    private Player host;
     private final List<Player> players;
 
-    public Game(String host) {
+    public Game(Player host) {
         this.id = generateUniqueId();
         this.startTime = LocalDateTime.now();
         this.code = generateRandomCode();
@@ -46,6 +46,18 @@ public class Game {
         return false;
     }
 
+    public boolean removePlayer(Player player) {
+        return players.remove(player);
+    }
+
+    public void assignNewHost() {
+        if (!players.isEmpty()) {
+            host = players.getFirst(); // Najwcześniej dodany gracz
+        } else {
+            host = null; // Brak graczy
+        }
+    }
+
     public boolean isFull() {
         return players.size() >= MAX_PLAYERS;
     }
@@ -66,7 +78,7 @@ public class Game {
         return code;
     }
 
-    public String getHost() {
+    public Player getHost() {
         return host;
     }
 

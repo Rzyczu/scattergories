@@ -53,7 +53,6 @@ public class MenuSystem {
                     } else {
                         System.out.println("Tylko host może rozpocząć grę.");
                     }
-                    break;
                 default:
                     System.out.println("Nieprawidłowy wybór.");
             }
@@ -65,11 +64,6 @@ public class MenuSystem {
             try {
                 String response;
                 while ((response = in.readLine()) != null) {
-                    if (response.trim().isEmpty()) {
-                        System.out.println("Serwer zakończył połączenie.");
-                        break;
-                    }
-
                     JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
                     String action = jsonResponse.get("action").getAsString();
 
@@ -84,6 +78,10 @@ public class MenuSystem {
                             isHost = true;
                             System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
                             break;
+                        case "game_started":
+                            System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
+                            new GameSystem(in, out).startGame(); // Przekierowanie do GameSystem
+                            return; // Zakończenie wątku nasłuchiwania
                         case "joined_game":
                         case "prompt_nickname":
                         case "welcome":
@@ -97,14 +95,13 @@ public class MenuSystem {
                 }
             } catch (IOException e) {
                 System.err.println("Błąd podczas odczytu odpowiedzi od serwera: " + e.getMessage());
-            } catch (Exception e) {
-                System.err.println("Nieoczekiwany błąd: " + e.getMessage());
             }
         });
 
         listenerThread.setDaemon(true);
         listenerThread.start();
     }
+
 
     private void handleCreateGame() {
         System.out.println("Wybierz typ gry:");

@@ -75,6 +75,9 @@ public class Server {
                         case "join_game_by_code":
                             handleJoinGameByCode(jsonInput);
                             break;
+                        case "start_game":
+                            handleStartGame();
+                            break;
                         case "exit":
                             sendJsonMessage("disconnect", "Zamykanie połączenia...");
                             return;
@@ -172,6 +175,29 @@ public class Server {
                 }
             }
             return handlers;
+        }
+
+        private void handleStartGame() {
+            if (currentGame != null && currentGame.getHost().equals(player)) {
+                if (currentGame.getPlayers().size() >= 2) {
+                    broadcastGameStart();
+                    System.out.println("Gra została rozpoczęta przez " + player.getNickname());
+                } else {
+                    sendJsonMessage("error", "Gra wymaga co najmniej 2 graczy, aby rozpocząć.");
+                }
+            } else {
+                sendJsonMessage("error", "Tylko host może rozpocząć grę.");
+            }
+        }
+
+        private void broadcastGameStart() {
+            JsonObject message = new JsonObject();
+            message.addProperty("action", "game_started");
+            message.addProperty("message", "Gra została rozpoczęta!");
+
+            for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
+                handler.out.println(message.toString());
+            }
         }
     }
 }

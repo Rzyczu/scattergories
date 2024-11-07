@@ -16,6 +16,22 @@ public class Game {
     private final String code;
     private Player host;
     private final List<Player> players;
+    private Type gameType;
+
+    public  enum Type {
+        OPEN("Open"),
+        CLOSE("Close");
+
+        private final String displayName;
+
+        Type(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
 
     public Game(Player host) {
         this.id = generateUniqueId();
@@ -23,6 +39,7 @@ public class Game {
         this.code = generateRandomCode();
         this.host = host;
         this.players = new ArrayList<>();
+        this.gameType = Type.OPEN; // Domyślnie ustawienie na OPEN
     }
 
     private String generateUniqueId() {
@@ -52,7 +69,7 @@ public class Game {
 
     public void assignNewHost() {
         if (!players.isEmpty()) {
-            host = players.getFirst(); // Najwcześniej dodany gracz
+            host = players.get(0); // Najwcześniej dodany gracz
         } else {
             host = null; // Brak graczy
         }
@@ -60,6 +77,14 @@ public class Game {
 
     public boolean isFull() {
         return players.size() >= MAX_PLAYERS;
+    }
+
+    public String getGameTypeDisplayName() {
+        return gameType.getDisplayName();
+    }
+
+    public void setGameType(Type gameType) {
+        this.gameType = gameType;
     }
 
     public String getId() {
@@ -85,6 +110,8 @@ public class Game {
     public List<Player> getPlayers() {
         return players;
     }
+
+    public Type getType() {return gameType;}
 
     public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;

@@ -13,7 +13,7 @@ public class MenuSystem {
     private final PrintWriter out;
     private final Scanner scanner;
     private final Gson gson = new Gson();
-    private boolean isHost = false;
+    private boolean IsHost = false;
 
     public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
         this.in = in;
@@ -37,11 +37,11 @@ public class MenuSystem {
             switch (choice) {
                 case "1":
                     handleCreateGame();
-                    isHost = true;
+                    IsHost = true;
                     break;
                 case "2":
                     handleJoinGame();
-                    isHost = false;
+                    IsHost = false;
                     break;
                 default:
                     System.out.println("Nieprawidłowy wybór.");
@@ -106,8 +106,7 @@ public class MenuSystem {
 
     private void enterLobby() {
         System.out.println("Jesteś w Lobby. Oczekuj na innych graczy...");
-        if (isHost) {
+        if (IsHost) {
             System.out.println("Wpisz 'start' aby rozpocząć grę.");
-        }
-    }
+        }    }
 }

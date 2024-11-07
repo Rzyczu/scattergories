@@ -13,9 +13,8 @@ import java.util.*;
 
 public class Server {
 
-    private static final int PORT = 12121;
-    private static final Map<String, Game> activeGames = new HashMap<>();
-    private static final List<Game> openGames = new ArrayList<>();
+    private static final int PORT = 12345;
+    private static final Map<String, Game> activeGames = Collections.synchronizedMap(new HashMap<>());
     private static final Gson gson = new Gson();
 
     public static void main(String[] args) {
@@ -37,7 +36,6 @@ public class Server {
         private final Socket clientSocket;
         private Player player;
         private Game currentGame;
-        private PrintWriter out;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
@@ -49,14 +47,10 @@ public class Server {
                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
             ) {
-                this.out = out;
                 out.println("Proszę podać swój pseudonim:");
                 String nickname = in.readLine();
                 String ip = clientSocket.getInetAddress().toString();
                 player = new Player(nickname, ip);
-
-                // Logowanie dla dodawania gracza
-                System.out.println("Dodano gracza: " + player.getNickname());
 
                 out.println("Witaj, " + player.getNickname() + "!");
 
@@ -64,8 +58,6 @@ public class Server {
                 while ((inputLine = in.readLine()) != null) {
                     JsonObject jsonInput = gson.fromJson(inputLine, JsonObject.class);
                     String action = jsonInput.get("action").getAsString();
-
-                    System.out.println("Otrzymano akcję od klienta: " + action);
 
                     switch (action) {
                         case "create_game":
@@ -104,20 +96,21 @@ public class Server {
             if (currentGame.addPlayer(player)) {
                 activeGames.put(currentGame.getCode(), currentGame);
                 if ("open".equalsIgnoreCase(gameType)) {
-                    openGames.add(currentGame);
+                    currentGame.setGameType(Game.Type.OPEN);
+                } else if ("close".equalsIgnoreCase(gameType)) {
+                    currentGame.setGameType(Game.Type.CLOSE);
                 }
-
-                System.out.println("Gra stworzona przez " + player.getNickname());
                 out.println("Stworzono nową grę (" + gameType + ") z kodem: " + currentGame.getCode());
                 out.println("Przeniesiono do Lobby. Czekaj na innych graczy...");
+                System.out.println("Gra utworzona przez " + player.getNickname() + " z kodem: " + currentGame.getCode());
             } else {
                 out.println("Nie można utworzyć gry.");
             }
         }
 
         private void handleJoinRandomGame(PrintWriter out) {
-            for (Game game : openGames) {
-                if (!game.isFull()) {
+            for (Game game : activeGames.values()) {
+                if (game.getType() == Game.Type.OPEN && !game.isFull()) {
                     game.addPlayer(player);
                     currentGame = game;
                     out.println("Dołączono do losowej gry: " + game.getCode());

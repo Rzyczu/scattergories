@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Scanner;
 import java.util.List;
@@ -21,6 +22,7 @@ public class MenuSystem {
         this.in = in;
         this.out = out;
         this.scanner = scanner;
+        startListeningToServer(); // Uruchamiamy nowy wątek odbierający wiadomości
     }
 
     public void run() {
@@ -43,13 +45,31 @@ public class MenuSystem {
                 case "2":
                     handleJoinGame();
                     break;
+                case "start":
+                    if (isHost) {
+                        JsonObject request = new JsonObject();
+                        request.addProperty("action", "start_game");
+                        out.println(gson.toJson(request));
+                    } else {
+                        System.out.println("Tylko host może rozpocząć grę.");
+                    }
+                    break;
                 default:
                     System.out.println("Nieprawidłowy wybór.");
             }
+        }
+    }
 
+    private void startListeningToServer() {
+        Thread listenerThread = new Thread(() -> {
             try {
                 String response;
                 while ((response = in.readLine()) != null) {
+                    if (response.trim().isEmpty()) {
+                        System.out.println("Serwer zakończył połączenie.");
+                        break;
+                    }
+
                     JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
                     String action = jsonResponse.get("action").getAsString();
 
@@ -62,7 +82,7 @@ public class MenuSystem {
                             break;
                         case "game_created":
                             isHost = true;
-                            System.out.println(jsonResponse.get("message").getAsString());
+                            System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
                             break;
                         case "joined_game":
                         case "prompt_nickname":
@@ -75,10 +95,15 @@ public class MenuSystem {
                             System.out.println("Serwer: Nieznana akcja.");
                     }
                 }
-            } catch (Exception e) {
+            } catch (IOException e) {
                 System.err.println("Błąd podczas odczytu odpowiedzi od serwera: " + e.getMessage());
+            } catch (Exception e) {
+                System.err.println("Nieoczekiwany błąd: " + e.getMessage());
             }
-        }
+        });
+
+        listenerThread.setDaemon(true);
+        listenerThread.start();
     }
 
     private void handleCreateGame() {
@@ -126,13 +151,7 @@ public class MenuSystem {
     private void enterLobby() {
         System.out.println("Jesteś w Lobby. Oczekuj na innych graczy...");
         if (isHost) {
-            System.out.println("Wpisz 'start' aby rozpocząć grę.");
-            String command = scanner.nextLine();
-            if ("start".equalsIgnoreCase(command)) {
-                JsonObject request = new JsonObject();
-                request.addProperty("action", "start_game");
-                out.println(gson.toJson(request));
-            }
+            System.out.println("Jesteś gospodarzem. Wpisz 'start' w menu głównym, aby rozpocząć grę.");
         }
     }
 
@@ -142,6 +161,6 @@ public class MenuSystem {
         for (String player : players) {
             System.out.println("- " + player);
         }
-        System.out.println("Liczba graczy: " + players.size());
+        System.out.println("Liczba graczy: " + players.size() + "/6");
     }
 }

@@ -13,7 +13,7 @@ import java.util.*;
 
 public class Server {
 
-    private static final int PORT = 12345;
+    private static final int PORT = 12121;
     private static final Map<String, Game> activeGames = Collections.synchronizedMap(new HashMap<>());
     private static final Gson gson = new Gson();
     private static final List<ClientHandler> allHandlers = Collections.synchronizedList(new ArrayList<>());

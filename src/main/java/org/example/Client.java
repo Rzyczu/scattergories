@@ -10,7 +10,7 @@ import java.util.Scanner;
 public class Client {
 
     private static final String SERVER_ADDRESS = "localhost";
-    private static final int PORT = 12345  ;
+    private static final int PORT = 12121  ;
 
     public static void main(String[] args) {
         System.out.println("Łączenie z serwerem na " + SERVER_ADDRESS + ":" + PORT);

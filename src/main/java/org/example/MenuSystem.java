@@ -2,10 +2,12 @@ package org.example;
 
 import com.google.gson.JsonObject;
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.util.Scanner;
+import java.util.List;
 
 public class MenuSystem {
 
@@ -14,6 +16,7 @@ public class MenuSystem {
     private final Scanner scanner;
     private final Gson gson = new Gson();
     private boolean isHost = false;
+
     public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
         this.in = in;
         this.out = out;
@@ -47,15 +50,29 @@ public class MenuSystem {
             try {
                 String response;
                 while ((response = in.readLine()) != null) {
-                    System.out.println("Serwer: " + response);
+                    JsonObject jsonResponse = gson.fromJson(response, JsonObject.class);
+                    String action = jsonResponse.get("action").getAsString();
 
-                    if (response.contains("Stworzono nową grę")) {
-                        isHost = true;
-                    }
-
-                    if (response.contains("Przeniesiono do Lobby")) {
-                        enterLobby();
-                        // break;
+                    switch (action) {
+                        case "update_lobby":
+                            updateLobbyDisplay(jsonResponse);
+                            break;
+                        case "lobby":
+                            enterLobby();
+                            break;
+                        case "game_created":
+                            isHost = true;
+                            System.out.println(jsonResponse.get("message").getAsString());
+                            break;
+                        case "joined_game":
+                        case "prompt_nickname":
+                        case "welcome":
+                        case "error":
+                        case "disconnect":
+                            System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
+                            break;
+                        default:
+                            System.out.println("Serwer: Nieznana akcja.");
                     }
                 }
             } catch (Exception e) {
@@ -117,5 +134,14 @@ public class MenuSystem {
                 out.println(gson.toJson(request));
             }
         }
+    }
+
+    private void updateLobbyDisplay(JsonObject jsonResponse) {
+        System.out.println("Aktualna lista graczy w lobby:");
+        List<String> players = gson.fromJson(jsonResponse.get("players"), new TypeToken<List<String>>() {}.getType());
+        for (String player : players) {
+            System.out.println("- " + player);
+        }
+        System.out.println("Liczba graczy: " + players.size());
     }
 }

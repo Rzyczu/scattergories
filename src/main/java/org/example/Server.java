@@ -16,6 +16,7 @@ public class Server {
     private static final int PORT = 12345;
     private static final Map<String, Game> activeGames = Collections.synchronizedMap(new HashMap<>());
     private static final Gson gson = new Gson();
+    private static final List<ClientHandler> allHandlers = Collections.synchronizedList(new ArrayList<>());
 
     public static void main(String[] args) {
         System.out.println("Serwer uruchomiony, nasłuchuje na porcie: " + PORT);
@@ -25,7 +26,9 @@ public class Server {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Nowe połączenie: " + clientSocket.getInetAddress());
 
-                new ClientHandler(clientSocket).start();
+                ClientHandler handler = new ClientHandler(clientSocket);
+                allHandlers.add(handler);
+                handler.start();
             }
         } catch (IOException e) {
             System.err.println("Błąd podczas uruchamiania serwera: " + e.getMessage());
@@ -36,6 +39,7 @@ public class Server {
         private final Socket clientSocket;
         private Player player;
         private Game currentGame;
+        private PrintWriter out;
 
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
@@ -47,12 +51,14 @@ public class Server {
                     BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                     PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
             ) {
-                out.println("Proszę podać swój pseudonim:");
+                this.out = out;
+
+                sendJsonMessage("prompt_nickname", "Proszę podać swój pseudonim:");
                 String nickname = in.readLine();
                 String ip = clientSocket.getInetAddress().toString();
                 player = new Player(nickname, ip);
 
-                out.println("Witaj, " + player.getNickname() + "!");
+                sendJsonMessage("welcome", "Witaj, " + player.getNickname() + "!");
 
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
@@ -61,19 +67,19 @@ public class Server {
 
                     switch (action) {
                         case "create_game":
-                            handleCreateGame(jsonInput, out);
+                            handleCreateGame(jsonInput);
                             break;
                         case "join_game_random":
-                            handleJoinRandomGame(out);
+                            handleJoinRandomGame();
                             break;
                         case "join_game_by_code":
-                            handleJoinGameByCode(jsonInput, out);
+                            handleJoinGameByCode(jsonInput);
                             break;
                         case "exit":
-                            out.println("Zamykanie połączenia...");
+                            sendJsonMessage("disconnect", "Zamykanie połączenia...");
                             return;
                         default:
-                            out.println("Nieznane działanie: " + action);
+                            sendJsonMessage("error", "Nieznane działanie: " + action);
                     }
                 }
 
@@ -89,54 +95,83 @@ public class Server {
             }
         }
 
-        private void handleCreateGame(JsonObject jsonInput, PrintWriter out) {
+        private void handleCreateGame(JsonObject jsonInput) {
             String gameType = jsonInput.get("game_type").getAsString();
             currentGame = new Game(player);
 
             if (currentGame.addPlayer(player)) {
                 activeGames.put(currentGame.getCode(), currentGame);
-                if ("open".equalsIgnoreCase(gameType)) {
-                    currentGame.setGameType(Game.Type.OPEN);
-                } else if ("close".equalsIgnoreCase(gameType)) {
-                    currentGame.setGameType(Game.Type.CLOSE);
-                }
-                out.println("Stworzono nową grę (" + gameType + ") z kodem: " + currentGame.getCode());
-                out.println("Przeniesiono do Lobby. Czekaj na innych graczy...");
+                currentGame.setGameType("open".equalsIgnoreCase(gameType) ? Game.Type.OPEN : Game.Type.CLOSE);
+
+                sendJsonMessage("game_created", "Stworzono nową grę (" + gameType + ") z kodem: " + currentGame.getCode());
+                sendJsonMessage("lobby", "Przeniesiono do Lobby. Czekaj na innych graczy...");
+
                 System.out.println("Gra utworzona przez " + player.getNickname() + " z kodem: " + currentGame.getCode());
+                broadcastPlayerList();
             } else {
-                out.println("Nie można utworzyć gry.");
+                sendJsonMessage("error", "Nie można utworzyć gry.");
             }
         }
 
-        private void handleJoinRandomGame(PrintWriter out) {
+        private void handleJoinRandomGame() {
             for (Game game : activeGames.values()) {
                 if (game.getType() == Game.Type.OPEN && !game.isFull()) {
                     game.addPlayer(player);
                     currentGame = game;
-                    out.println("Dołączono do losowej gry: " + game.getCode());
-                    out.println("Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
+                    sendJsonMessage("joined_game", "Dołączono do losowej gry: " + game.getCode());
+                    sendJsonMessage("lobby", "Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
+
                     System.out.println(player.getNickname() + " dołączył do gry: " + game.getCode());
+                    broadcastPlayerList();
                     return;
                 }
             }
-            out.println("Brak dostępnych gier typu open. Spróbuj później.");
+            sendJsonMessage("error", "Brak dostępnych gier typu open. Spróbuj później.");
         }
 
-        private void handleJoinGameByCode(JsonObject jsonInput, PrintWriter out) {
+        private void handleJoinGameByCode(JsonObject jsonInput) {
             String gameCode = jsonInput.get("game_code").getAsString();
             currentGame = activeGames.get(gameCode);
 
             if (currentGame != null) {
                 if (currentGame.addPlayer(player)) {
-                    out.println("Dołączono do gry: " + gameCode);
-                    out.println("Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
+                    sendJsonMessage("joined_game", "Dołączono do gry: " + gameCode);
+                    sendJsonMessage("lobby", "Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
                     System.out.println(player.getNickname() + " dołączył do gry: " + gameCode);
+                    broadcastPlayerList();
                 } else {
-                    out.println("Gra jest pełna.");
+                    sendJsonMessage("error", "Gra jest pełna.");
                 }
             } else {
-                out.println("Gra o kodzie " + gameCode + " nie istnieje.");
+                sendJsonMessage("error", "Gra o kodzie " + gameCode + " nie istnieje.");
             }
+        }
+
+        private void broadcastPlayerList() {
+            JsonObject message = new JsonObject();
+            message.addProperty("action", "update_lobby");
+            message.add("players", gson.toJsonTree(currentGame.getPlayerNicknames()));
+
+            for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
+                handler.out.println(message.toString());
+            }
+        }
+
+        private void sendJsonMessage(String action, String message) {
+            JsonObject jsonMessage = new JsonObject();
+            jsonMessage.addProperty("action", action);
+            jsonMessage.addProperty("message", message);
+            out.println(jsonMessage.toString());
+        }
+
+        private List<ClientHandler> getAllHandlersInGame(Game game) {
+            List<ClientHandler> handlers = new ArrayList<>();
+            for (ClientHandler handler : allHandlers) {
+                if (handler.currentGame == game) {
+                    handlers.add(handler);
+                }
+            }
+            return handlers;
         }
     }
 }

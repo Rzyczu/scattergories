@@ -113,6 +113,14 @@ public class Game {
 
     public Type getType() {return gameType;}
 
+    public List<String> getPlayerNicknames() {
+        List<String> nicknames = new ArrayList<>();
+        for (Player player : players) {
+            nicknames.add(player.getNickname());
+        }
+        return nicknames;
+    }
+
     public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;
     }

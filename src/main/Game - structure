@@ -1,0 +1,59 @@
+Struktura rundy i zasady gry
+- Liczba rund:
+    Gra składa się z 5 rund.
+
+- Każda runda zawiera:
+    - Losowanie litery:
+        Serwer losuje jedną literę alfabetu i przesyła ją do wszystkich graczy.
+    - Przesyłanie kategorii:
+        Serwer przesyła kategorię każdemu graczowi. Kategoriami są: Państwo, Miasto, Zwierzę, Roślina, Jedzenie.
+    - Wpisywanie odpowiedzi przez graczy:
+        Każdy gracz przesyła swoje odpowiedzi do serwera dla każdej kategorii.
+    - Mechanizm przesyłania odpowiedzi:
+        - Pierwszy gracz:
+            Gdy pierwszy z graczy zakończy wpisywanie swoich odpowiedzi i wyśle je na serwer, serwer rozpoczyna 5-sekundowy licznik.
+        - Reszta graczy:
+            Każdy gracz dostaje informację o 5-sekundowym czasie na zakończenie rundy i wpisanie pozostałych odpowiedzi.
+        - Końcowe przesyłanie odpowiedzi:
+            Po upłynięciu 5 sekund lub zakończeniu przez gracza wpisywania odpowiedzi, serwer zbiera odpowiedzi wszystkich graczy.
+    - Ocena odpowiedzi:
+        - Sprawdzanie zgodności:
+            Serwer weryfikuje, czy odpowiedzi graczy zaczynają się na wylosowaną literę.
+        - Porównanie odpowiedzi:
+            Serwer porównuje odpowiedzi wszystkich graczy w każdej kategorii:
+                - Unikatowa odpowiedź (rozpoczynająca się na tę samą literę) – 2 punkty.
+                - Powtórzona odpowiedź (rozpoczynająca się na tę samą literę) – 1 punkt dla każdego gracza.
+                - Nieprawidłowa odpowiedź (nie zaczyna się na daną literę lub jest pusta) – 0 punktów.
+        - Tabela wyników:
+            Po każdej rundzie serwer aktualizuje i przesyła punktację graczy, uwzględniając punkty ze wszystkich rund.
+
+Komunikacja
+- Wiadomości JSON:
+    Start rundy:
+    - Serwer przesyła wiadomość o rozpoczęciu nowej rundy, losując literę i przesyłając ją do graczy.
+    - Kategoria i czas odpowiedzi: Serwer informuje o aktualnej kategorii oraz rozpoczęciu 5-sekundowego limitu, gdy pierwszy gracz wyśle odpowiedzi.
+    - Odpowiedzi graczy: Gracze przesyłają swoje odpowiedzi dla wszystkich kategorii w formacie JSON po zakończeniu rundy lub po upływie limitu czasu.
+    - Ocena rundy i punkty: Serwer przesyła ocenę odpowiedzi i tabelę wyników.
+
+- Kluczowe komponenty i odpowiedzialności
+    Serwer:
+    - Losowanie litery.
+    - Przesyłanie kategorii i informacji o starcie oraz zakończeniu rundy.
+    - Zbieranie odpowiedzi od graczy i uruchomienie licznika po otrzymaniu pierwszych odpowiedzi.
+    - Ocena odpowiedzi i przydzielanie punktów.
+    - Przesyłanie wyników.
+    Klient (GameSystem):
+    - Otrzymywanie litery, kategorii oraz 5-sekundowego limitu na wpisanie odpowiedzi.
+    - Przesyłanie swoich odpowiedzi dla każdej kategorii na serwer.
+
+- Struktura JSON dla wiadomości:
+    - Losowanie litery:
+        { "action": "new_round", "letter": "<litera>" }
+    - Kategoria:
+        { "action": "category", "category": "<nazwa_kategorii>" }
+    - Odpowiedzi graczy:
+        { "action": "submit_answers", "answers": { "Państwo": "...", "Miasto": "...", ... } }
+    - Wyniki rundy:
+        { "action": "round_results", "scores": { "gracz1": 10, "gracz2": 12, ... } }
+    - Informacja o zakończeniu gry:
+        { "action": "game_end", "final_scores": { "gracz1": 20, "gracz2": 15, ... } }

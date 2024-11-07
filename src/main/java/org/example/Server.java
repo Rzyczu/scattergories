@@ -18,8 +18,6 @@ public class Server {
     private static final List<Game> openGames = new ArrayList<>();
     private static final Gson gson = new Gson();
 
-    private static final Map<Player, PrintWriter> playerWriters = new HashMap<>();
-
     public static void main(String[] args) {
         System.out.println("Serwer uruchomiony, nasłuchuje na porcie: " + PORT);
 
@@ -59,7 +57,6 @@ public class Server {
 
                 // Logowanie dla dodawania gracza
                 System.out.println("Dodano gracza: " + player.getNickname());
-                playerWriters.put(player, out);
 
                 out.println("Witaj, " + player.getNickname() + "!");
 
@@ -80,9 +77,6 @@ public class Server {
                         case "join_game_by_code":
                             handleJoinGameByCode(jsonInput, out);
                             break;
-                        case "leave_lobby":
-                            handleLeaveLobby();
-                            return;
                         case "exit":
                             out.println("Zamykanie połączenia...");
                             return;
@@ -96,58 +90,11 @@ public class Server {
                 System.err.println("Błąd w komunikacji z klientem: " + e.getMessage());
             } finally {
                 try {
-                    playerWriters.remove(player);
                     clientSocket.close();
                 } catch (IOException e) {
                     System.err.println("Błąd podczas zamykania połączenia: " + e.getMessage());
                 }
             }
-        }
-
-        private void handleLeaveLobby() {
-            if (currentGame != null) {
-                currentGame.removePlayer(player);
-                System.out.println(player.getNickname() + " opuścił lobby");
-
-                // Sprawdź, czy host opuścił lobby i przypisz nowego hosta
-                if (player.equals(currentGame.getHost())) {
-                    currentGame.assignNewHost();
-                    Player newHost = currentGame.getHost();
-
-                    // Powiadom wszystkich graczy o nowym hoście
-                    for (Player p : currentGame.getPlayers()) {
-                        PrintWriter writer = getWriterForPlayer(p);
-                        if (writer != null) {
-                            if (p.equals(newHost)) {
-                                writer.println("Jesteś hostem");
-                                writer.flush();
-                                System.out.println("Wysłano do " + p.getNickname() + ": Jesteś hostem");
-                            } else {
-                                writer.println("Nowy host to: " + newHost.getNickname());
-                                writer.flush();
-                                System.out.println("Wysłano do " + p.getNickname() + ": Nowy host to " + newHost.getNickname());
-                            }
-                        } else {
-                            System.out.println("Błąd: Brak writer dla gracza " + p.getNickname());
-                        }
-                    }
-                }
-
-                // Wyświetlanie listy graczy w konsoli
-                for (Player p : currentGame.getPlayers()) {
-                    System.out.println("Gracz w grze: " + p.getNickname());
-                }
-
-                out.println("Opuszczono lobby. Powrót do strony startowej.");
-                System.out.println("Wysłano do " + player.getNickname() + ": Opuszczono lobby. Powrót do strony startowej.");
-
-                currentGame = null;
-            }
-        }
-
-
-        private PrintWriter getWriterForPlayer(Player player) {
-            return playerWriters.get(player);
         }
 
         private void handleCreateGame(JsonObject jsonInput, PrintWriter out) {

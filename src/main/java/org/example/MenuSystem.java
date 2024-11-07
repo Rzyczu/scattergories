@@ -13,8 +13,7 @@ public class MenuSystem {
     private final PrintWriter out;
     private final Scanner scanner;
     private final Gson gson = new Gson();
-    private boolean IsHost = false;
-
+    private boolean isHost = false;
     public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
         this.in = in;
         this.out = out;
@@ -37,11 +36,9 @@ public class MenuSystem {
             switch (choice) {
                 case "1":
                     handleCreateGame();
-                    IsHost = true;
                     break;
                 case "2":
                     handleJoinGame();
-                    IsHost = false;
                     break;
                 default:
                     System.out.println("Nieprawidłowy wybór.");
@@ -51,9 +48,14 @@ public class MenuSystem {
                 String response;
                 while ((response = in.readLine()) != null) {
                     System.out.println("Serwer: " + response);
+
+                    if (response.contains("Stworzono nową grę")) {
+                        isHost = true;
+                    }
+
                     if (response.contains("Przeniesiono do Lobby")) {
                         enterLobby();
-                        //break;
+                        // break;
                     }
                 }
             } catch (Exception e) {
@@ -106,7 +108,14 @@ public class MenuSystem {
 
     private void enterLobby() {
         System.out.println("Jesteś w Lobby. Oczekuj na innych graczy...");
-        if (IsHost) {
+        if (isHost) {
             System.out.println("Wpisz 'start' aby rozpocząć grę.");
-        }    }
+            String command = scanner.nextLine();
+            if ("start".equalsIgnoreCase(command)) {
+                JsonObject request = new JsonObject();
+                request.addProperty("action", "start_game");
+                out.println(gson.toJson(request));
+            }
+        }
+    }
 }

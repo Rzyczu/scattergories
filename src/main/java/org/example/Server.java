@@ -17,6 +17,7 @@ public class Server {
     private static final Map<String, Game> activeGames = Collections.synchronizedMap(new HashMap<>());
     private static final Gson gson = new Gson();
     private static final List<ClientHandler> allHandlers = Collections.synchronizedList(new ArrayList<>());
+    private static final List<String> categoriesList = List.of("Państwo", "Miasto", "Zwierzę", "Roślina", "Jedzenie");
 
     public static void main(String[] args) {
         System.out.println("Serwer uruchomiony, nasłuchuje na porcie: " + PORT);
@@ -77,6 +78,9 @@ public class Server {
                             break;
                         case "start_game":
                             handleStartGame();
+                            break;
+                        case "submit_answers":
+                            handleSubmitAnswers(jsonInput);
                             break;
                         case "exit":
                             sendJsonMessage("disconnect", "Zamykanie połączenia...");
@@ -215,7 +219,24 @@ public class Server {
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(message.toString());
             }
-            System.out.println("Rozpoczęto rundę " + roundNumber + " z literą: " + letter);
+
+            sendCategoriesToPlayers();
+        }
+
+        private void sendCategoriesToPlayers() {
+            JsonObject message = new JsonObject();
+            message.addProperty("action", "categories");
+            message.add("categories", gson.toJsonTree(categoriesList));
+
+            for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
+                handler.out.println(message.toString());
+            }
+            System.out.println("Kategorie zostały wysłane do graczy.");
+        }
+
+        private void handleSubmitAnswers(JsonObject jsonInput) {
+            JsonObject answers = jsonInput.getAsJsonObject("answers");
+            System.out.println("Otrzymano odpowiedzi od gracza " + player.getNickname() + ": " + answers.toString());
         }
     }
 }

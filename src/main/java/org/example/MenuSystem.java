@@ -30,6 +30,9 @@ public class MenuSystem {
             System.out.println("Landing Page:");
             System.out.println("1. Stwórz grę");
             System.out.println("2. Dołącz do gry");
+            if (isHost) {
+                System.out.println("'start' - Rozpocznij grę");
+            }
             System.out.print("Wybierz opcję (1 lub 2, 'exit' aby zakończyć): ");
             String choice = scanner.nextLine();
 
@@ -53,6 +56,7 @@ public class MenuSystem {
                     } else {
                         System.out.println("Tylko host może rozpocząć grę.");
                     }
+                    break;
                 default:
                     System.out.println("Nieprawidłowy wybór.");
             }
@@ -80,8 +84,7 @@ public class MenuSystem {
                             break;
                         case "game_started":
                             System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
-                            new GameSystem(in, out).startGame(); // Przekierowanie do GameSystem
-                            return; // Zakończenie wątku nasłuchiwania
+                            break;
                         case "joined_game":
                         case "prompt_nickname":
                         case "welcome":

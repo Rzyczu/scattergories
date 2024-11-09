@@ -85,6 +85,9 @@ public class MenuSystem {
                         case "game_started":
                             System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
                             break;
+                        case "new_round":
+                            handleNewRound(jsonResponse);
+                            break;
                         case "joined_game":
                         case "prompt_nickname":
                         case "welcome":
@@ -162,5 +165,11 @@ public class MenuSystem {
             System.out.println("- " + player);
         }
         System.out.println("Liczba graczy: " + players.size() + "/6");
+    }
+
+    private void handleNewRound(JsonObject jsonResponse) {
+        int roundNumber = jsonResponse.get("round_number").getAsInt();
+        String letter = jsonResponse.get("letter").getAsString();
+        System.out.println("Runda " + roundNumber + ". Wylosowana litera: " + letter);
     }
 }

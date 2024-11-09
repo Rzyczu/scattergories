@@ -182,6 +182,7 @@ public class Server {
                 if (currentGame.getPlayers().size() >= 2) {
                     broadcastGameStart();
                     System.out.println("Gra została rozpoczęta przez " + player.getNickname());
+                    startNewRound(1);
                 } else {
                     sendJsonMessage("error", "Gra wymaga co najmniej 2 graczy, aby rozpocząć.");
                 }
@@ -198,6 +199,23 @@ public class Server {
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(message.toString());
             }
+        }
+
+        private void startNewRound(int roundNumber) {
+            // Losowanie litery
+            char letter = (char) ('A' + new Random().nextInt(26));
+
+            // Tworzenie JSON-a z informacją o nowej rundzie
+            JsonObject message = new JsonObject();
+            message.addProperty("action", "new_round");
+            message.addProperty("round_number", roundNumber);
+            message.addProperty("letter", String.valueOf(letter));
+
+            // Wysyłanie do wszystkich klientów w aktualnej grze
+            for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
+                handler.out.println(message.toString());
+            }
+            System.out.println("Rozpoczęto rundę " + roundNumber + " z literą: " + letter);
         }
     }
 }

@@ -18,24 +18,26 @@ public class MenuSystem {
     private final Gson gson = new Gson();
     private boolean isHost = false;
     private boolean inGame = false;
+
+    // Initializes MenuSystem with server input/output and user input
     public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
         this.in = in;
         this.out = out;
         this.scanner = scanner;
-        startListeningToServer(); //
+        startListeningToServer();
     }
 
+    // Main run loop for displaying the menu and processing user choices
     public void run() {
-
         while (true) {
             if (!inGame) {
                 System.out.println("Landing Page:");
-                System.out.println("1. Stwórz grę");
-                System.out.println("2. Dołącz do gry");
+                System.out.println("1. Create game");
+                System.out.println("2. Join game");
                 if (isHost) {
-                    System.out.println("'start' - Rozpocznij grę");
+                    System.out.println("'start' - Start the game");
                 }
-                System.out.print("Wybierz opcję (1 lub 2, 'exit' aby zakończyć): ");
+                System.out.print("Choose an option (1 or 2, 'exit' to quit): ");
                 String choice = scanner.nextLine();
 
                 if ("exit".equalsIgnoreCase(choice)) {
@@ -56,15 +58,15 @@ public class MenuSystem {
                             request.addProperty("action", "start_game");
                             out.println(gson.toJson(request));
                         } else {
-                            System.out.println("Tylko host może rozpocząć grę.");
+                            System.out.println("Only the host can start the game.");
                         }
                         break;
                     default:
-                        System.out.println("Nieprawidłowy wybór.");
+                        System.out.println("Invalid choice.");
                 }
             } else {
                 try {
-                    Thread.sleep(100); // Uspokojenie pętli, aby nie przechodziła do Landing Page
+                    Thread.sleep(100); // Small delay to prevent excessive loop speed
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -72,6 +74,7 @@ public class MenuSystem {
         }
     }
 
+    // Starts a separate thread to listen to server responses
     private void startListeningToServer() {
         Thread listenerThread = new Thread(() -> {
             try {
@@ -89,10 +92,10 @@ public class MenuSystem {
                             break;
                         case "game_created":
                             isHost = true;
-                            System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
+                            System.out.println("Server: " + jsonResponse.get("message").getAsString());
                             break;
                         case "game_started":
-                            System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
+                            System.out.println("Server: " + jsonResponse.get("message").getAsString());
                             break;
                         case "new_round":
                             handleNewRound(jsonResponse);
@@ -105,14 +108,14 @@ public class MenuSystem {
                         case "welcome":
                         case "error":
                         case "disconnect":
-                            System.out.println("Serwer: " + jsonResponse.get("message").getAsString());
+                            System.out.println("Server: " + jsonResponse.get("message").getAsString());
                             break;
                         default:
-                            System.out.println("Serwer: Nieznana akcja.");
+                            System.out.println("Server: Unknown action.");
                     }
                 }
             } catch (IOException e) {
-                System.err.println("Błąd podczas odczytu odpowiedzi od serwera: " + e.getMessage());
+                System.err.println("Error reading server response: " + e.getMessage());
             }
         });
 
@@ -120,12 +123,12 @@ public class MenuSystem {
         listenerThread.start();
     }
 
-
+    // Handles game creation process
     private void handleCreateGame() {
-        System.out.println("Wybierz typ gry:");
+        System.out.println("Choose game type:");
         System.out.println("1. Open");
         System.out.println("2. Close");
-        System.out.print("Twój wybór: ");
+        System.out.print("Your choice: ");
         String gameType = scanner.nextLine().equals("1") ? "open" : "close";
 
         JsonObject request = new JsonObject();
@@ -134,11 +137,12 @@ public class MenuSystem {
         out.println(gson.toJson(request));
     }
 
+    // Handles joining an existing game
     private void handleJoinGame() {
-        System.out.println("Dołącz do gry:");
+        System.out.println("Join a game:");
         System.out.println("1. Random Game");
         System.out.println("2. Enter by Code");
-        System.out.print("Wybierz opcję (1 lub 2): ");
+        System.out.print("Choose an option (1 or 2): ");
         String joinChoice = scanner.nextLine();
 
         if (joinChoice.equals("1")) {
@@ -146,70 +150,75 @@ public class MenuSystem {
             request.addProperty("action", "join_game_random");
             out.println(gson.toJson(request));
         } else if (joinChoice.equals("2")) {
-            System.out.print("Podaj kod gry: ");
+            System.out.print("Enter game code: ");
             String gameCode = scanner.nextLine();
             JsonObject request = new JsonObject();
             request.addProperty("action", "join_game_by_code");
             request.addProperty("game_code", gameCode);
             out.println(gson.toJson(request));
         } else {
-            System.out.println("Nieprawidłowy wybór.");
+            System.out.println("Invalid choice.");
         }
     }
 
+    // Sends an exit request to the server
     private void sendExitRequest() {
         JsonObject request = new JsonObject();
         request.addProperty("action", "exit");
         out.println(gson.toJson(request));
     }
 
+    // Enters the lobby and notifies the user
     private void enterLobby() {
-        System.out.println("Jesteś w Lobby. Oczekuj na innych graczy...");
+        System.out.println("You are in the Lobby. Waiting for other players...");
         if (isHost) {
-            System.out.println("Jesteś gospodarzem. Wpisz 'start' w menu głównym, aby rozpocząć grę.");
+            System.out.println("You are the host. Type 'start' in the main menu to begin the game.");
         }
     }
 
+    // Updates the lobby display with the current player list
     private void updateLobbyDisplay(JsonObject jsonResponse) {
-        System.out.println("Aktualna lista graczy w lobby:");
+        System.out.println("Current players in the lobby:");
         List<String> players = gson.fromJson(jsonResponse.get("players"), new TypeToken<List<String>>() {}.getType());
         for (String player : players) {
             System.out.println("- " + player);
         }
-        System.out.println("Liczba graczy: " + players.size() + "/6");
+        System.out.println("Player count: " + players.size() + "/6");
     }
 
+    // Starts a new game round with a chosen letter and round number
     private void handleNewRound(JsonObject jsonResponse) {
         inGame = true;
         int roundNumber = jsonResponse.get("round_number").getAsInt();
         String letter = jsonResponse.get("letter").getAsString();
-        System.out.println("Runda " + roundNumber + ". Wylosowana litera: " + letter);
+        System.out.println("Round " + roundNumber + ". Chosen letter: " + letter);
     }
 
+    // Displays the categories for the current round and collects answers from the user
     private void handleCategories(JsonObject jsonResponse) {
         List<String> categories = gson.fromJson(jsonResponse.get("categories"), new TypeToken<List<String>>() {}.getType());
 
-        System.out.println("Kategorie dla tej rundy:");
+        System.out.println("Categories for this round:");
         for (String category : categories) {
             System.out.println("- " + category);
         }
 
         JsonObject answers = new JsonObject();
-        System.out.println("Wprowadź odpowiedzi dla każdej kategorii:");
+        System.out.println("Enter your answers for each category:");
 
-        try (Scanner inputScanner = new Scanner(System.in)) {  // Nowy `Scanner` dla `System.in`
+        try (Scanner inputScanner = new Scanner(System.in)) {
             for (String category : categories) {
                 System.out.print(category + ": ");
                 if (inputScanner.hasNextLine()) {
                     String answer = inputScanner.nextLine();
                     answers.addProperty(category, answer);
                 } else {
-                    System.out.println("Błąd: brak danych wejściowych.");
+                    System.out.println("Error: No input data.");
                     return;
                 }
             }
         } catch (Exception e) {
-            System.err.println("Błąd podczas odczytu odpowiedzi: " + e.getMessage());
+            System.err.println("Error reading answers: " + e.getMessage());
             return;
         }
 
@@ -218,6 +227,6 @@ public class MenuSystem {
         request.add("answers", answers);
 
         out.println(gson.toJson(request));
-        System.out.println("Odpowiedzi zostały przesłane.");
+        System.out.println("Answers have been submitted.");
     }
 }

@@ -17,31 +17,34 @@ public class Server {
     private static final Map<String, Game> activeGames = Collections.synchronizedMap(new HashMap<>());
     private static final Gson gson = new Gson();
     private static final List<ClientHandler> allHandlers = Collections.synchronizedList(new ArrayList<>());
-    private static final List<String> categoriesList = List.of("Państwo", "Miasto", "Zwierzę", "Roślina", "Jedzenie");
+    private static final List<String> categoriesList = List.of("Country", "City", "Animal", "Plant", "Food");
 
+    // Entry point for starting the server
     public static void main(String[] args) {
-        System.out.println("Serwer uruchomiony, nasłuchuje na porcie: " + PORT);
+        System.out.println("Server started, listening on port: " + PORT);
 
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Nowe połączenie: " + clientSocket.getInetAddress());
+                System.out.println("New connection: " + clientSocket.getInetAddress());
 
                 ClientHandler handler = new ClientHandler(clientSocket);
                 allHandlers.add(handler);
                 handler.start();
             }
         } catch (IOException e) {
-            System.err.println("Błąd podczas uruchamiania serwera: " + e.getMessage());
+            System.err.println("Error starting server: " + e.getMessage());
         }
     }
 
+    // ClientHandler class to manage individual client connections and communications
     private static class ClientHandler extends Thread {
         private final Socket clientSocket;
         private Player player;
         private Game currentGame;
         private PrintWriter out;
 
+        // Initialize ClientHandler with the client's socket
         public ClientHandler(Socket clientSocket) {
             this.clientSocket = clientSocket;
         }
@@ -54,12 +57,12 @@ public class Server {
             ) {
                 this.out = out;
 
-                sendJsonMessage("prompt_nickname", "Proszę podać swój pseudonim:");
+                sendJsonMessage("prompt_nickname", "Please enter your nickname:");
                 String nickname = in.readLine();
                 String ip = clientSocket.getInetAddress().toString();
                 player = new Player(nickname, ip);
 
-                sendJsonMessage("welcome", "Witaj, " + player.getNickname() + "!");
+                sendJsonMessage("welcome", "Welcome, " + player.getNickname() + "!");
 
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
@@ -83,25 +86,26 @@ public class Server {
                             handleSubmitAnswers(jsonInput);
                             break;
                         case "exit":
-                            sendJsonMessage("disconnect", "Zamykanie połączenia...");
+                            sendJsonMessage("disconnect", "Closing connection...");
                             return;
                         default:
-                            sendJsonMessage("error", "Nieznane działanie: " + action);
+                            sendJsonMessage("error", "Unknown action: " + action);
                     }
                 }
 
-                System.out.println("Zamykam połączenie z klientem: " + player.getNickname());
+                System.out.println("Closing connection with client: " + player.getNickname());
             } catch (IOException e) {
-                System.err.println("Błąd w komunikacji z klientem: " + e.getMessage());
+                System.err.println("Communication error with client: " + e.getMessage());
             } finally {
                 try {
                     clientSocket.close();
                 } catch (IOException e) {
-                    System.err.println("Błąd podczas zamykania połączenia: " + e.getMessage());
+                    System.err.println("Error closing connection: " + e.getMessage());
                 }
             }
         }
 
+        // Handles creation of a new game and setting up lobby
         private void handleCreateGame(JsonObject jsonInput) {
             String gameType = jsonInput.get("game_type").getAsString();
             currentGame = new Game(player);
@@ -110,50 +114,53 @@ public class Server {
                 activeGames.put(currentGame.getCode(), currentGame);
                 currentGame.setGameType("open".equalsIgnoreCase(gameType) ? Game.Type.OPEN : Game.Type.CLOSE);
 
-                sendJsonMessage("game_created", "Stworzono nową grę (" + gameType + ") z kodem: " + currentGame.getCode());
-                sendJsonMessage("lobby", "Przeniesiono do Lobby. Czekaj na innych graczy...");
+                sendJsonMessage("game_created", "Created a new game (" + gameType + ") with code: " + currentGame.getCode());
+                sendJsonMessage("lobby", "Moved to Lobby. Waiting for other players...");
 
-                System.out.println("Gra utworzona przez " + player.getNickname() + " z kodem: " + currentGame.getCode());
+                System.out.println("Game created by " + player.getNickname() + " with code: " + currentGame.getCode());
                 broadcastPlayerList();
             } else {
-                sendJsonMessage("error", "Nie można utworzyć gry.");
+                sendJsonMessage("error", "Unable to create game.");
             }
         }
 
+        // Handles joining a random open game
         private void handleJoinRandomGame() {
             for (Game game : activeGames.values()) {
                 if (game.getType() == Game.Type.OPEN && !game.isFull()) {
                     game.addPlayer(player);
                     currentGame = game;
-                    sendJsonMessage("joined_game", "Dołączono do losowej gry: " + game.getCode());
-                    sendJsonMessage("lobby", "Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
+                    sendJsonMessage("joined_game", "Joined a random game: " + game.getCode());
+                    sendJsonMessage("lobby", "Moved to Lobby. Waiting to start...");
 
-                    System.out.println(player.getNickname() + " dołączył do gry: " + game.getCode());
+                    System.out.println(player.getNickname() + " joined the game: " + game.getCode());
                     broadcastPlayerList();
                     return;
                 }
             }
-            sendJsonMessage("error", "Brak dostępnych gier typu open. Spróbuj później.");
+            sendJsonMessage("error", "No open games available. Try again later.");
         }
 
+        // Handles joining a game by a specific code
         private void handleJoinGameByCode(JsonObject jsonInput) {
             String gameCode = jsonInput.get("game_code").getAsString();
             currentGame = activeGames.get(gameCode);
 
             if (currentGame != null) {
                 if (currentGame.addPlayer(player)) {
-                    sendJsonMessage("joined_game", "Dołączono do gry: " + gameCode);
-                    sendJsonMessage("lobby", "Przeniesiono do Lobby. Oczekiwanie na rozpoczęcie...");
-                    System.out.println(player.getNickname() + " dołączył do gry: " + gameCode);
+                    sendJsonMessage("joined_game", "Joined the game: " + gameCode);
+                    sendJsonMessage("lobby", "Moved to Lobby. Waiting to start...");
+                    System.out.println(player.getNickname() + " joined the game: " + gameCode);
                     broadcastPlayerList();
                 } else {
-                    sendJsonMessage("error", "Gra jest pełna.");
+                    sendJsonMessage("error", "Game is full.");
                 }
             } else {
-                sendJsonMessage("error", "Gra o kodzie " + gameCode + " nie istnieje.");
+                sendJsonMessage("error", "Game with code " + gameCode + " does not exist.");
             }
         }
 
+        // Broadcasts the current player list to everyone in the game
         private void broadcastPlayerList() {
             JsonObject message = new JsonObject();
             message.addProperty("action", "update_lobby");
@@ -164,6 +171,7 @@ public class Server {
             }
         }
 
+        // Sends a JSON message to the client
         private void sendJsonMessage(String action, String message) {
             JsonObject jsonMessage = new JsonObject();
             jsonMessage.addProperty("action", action);
@@ -171,6 +179,7 @@ public class Server {
             out.println(jsonMessage.toString());
         }
 
+        // Gets all client handlers for the current game
         private List<ClientHandler> getAllHandlersInGame(Game game) {
             List<ClientHandler> handlers = new ArrayList<>();
             for (ClientHandler handler : allHandlers) {
@@ -181,41 +190,41 @@ public class Server {
             return handlers;
         }
 
+        // Handles starting a game if there are enough players
         private void handleStartGame() {
             if (currentGame != null && currentGame.getHost().equals(player)) {
                 if (currentGame.getPlayers().size() >= 2) {
                     broadcastGameStart();
-                    System.out.println("Gra została rozpoczęta przez " + player.getNickname());
+                    System.out.println("Game started by " + player.getNickname());
                     startNewRound(1);
                 } else {
-                    sendJsonMessage("error", "Gra wymaga co najmniej 2 graczy, aby rozpocząć.");
+                    sendJsonMessage("error", "Game requires at least 2 players to start.");
                 }
             } else {
-                sendJsonMessage("error", "Tylko host może rozpocząć grę.");
+                sendJsonMessage("error", "Only the host can start the game.");
             }
         }
 
+        // Broadcasts the game start message to all players in the game
         private void broadcastGameStart() {
             JsonObject message = new JsonObject();
             message.addProperty("action", "game_started");
-            message.addProperty("message", "Gra została rozpoczęta!");
+            message.addProperty("message", "The game has started!");
 
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(message.toString());
             }
         }
 
+        // Starts a new game round and sends the chosen letter to all players
         private void startNewRound(int roundNumber) {
-            // Losowanie litery
             char letter = (char) ('A' + new Random().nextInt(26));
 
-            // Tworzenie JSON-a z informacją o nowej rundzie
             JsonObject message = new JsonObject();
             message.addProperty("action", "new_round");
             message.addProperty("round_number", roundNumber);
             message.addProperty("letter", String.valueOf(letter));
 
-            // Wysyłanie do wszystkich klientów w aktualnej grze
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(message.toString());
             }
@@ -223,6 +232,7 @@ public class Server {
             sendCategoriesToPlayers();
         }
 
+        // Sends the categories for the current round to all players
         private void sendCategoriesToPlayers() {
             JsonObject message = new JsonObject();
             message.addProperty("action", "categories");
@@ -231,12 +241,13 @@ public class Server {
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(message.toString());
             }
-            System.out.println("Kategorie zostały wysłane do graczy.");
+            System.out.println("Categories have been sent to players.");
         }
 
+        // Handles receiving answers from players and logging them
         private void handleSubmitAnswers(JsonObject jsonInput) {
             JsonObject answers = jsonInput.getAsJsonObject("answers");
-            System.out.println("Otrzymano odpowiedzi od gracza " + player.getNickname() + ": " + answers.toString());
+            System.out.println("Received answers from player " + player.getNickname() + ": " + answers.toString());
         }
     }
 }

@@ -10,32 +10,33 @@ import java.util.Scanner;
 public class Client {
 
     private static final String SERVER_ADDRESS = "localhost";
-    private static final int PORT = 12121  ;
+    private static final int PORT = 12121;
 
     public static void main(String[] args) {
-        System.out.println("Łączenie z serwerem na " + SERVER_ADDRESS + ":" + PORT);
+        System.out.println("Connecting to server at " + SERVER_ADDRESS + ":" + PORT);
 
         try (Socket socket = new Socket(SERVER_ADDRESS, PORT);
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
              Scanner scanner = new Scanner(System.in)) {
 
-            System.out.println("Połączono z serwerem.");
-            System.out.println("Serwer: " + in.readLine());
+            System.out.println("Connected to server.");
+            System.out.println("Server: " + in.readLine());
 
-            // Request user for nickname
+            // Requesting nickname from user
             String nickname = scanner.nextLine();
             out.println(nickname);
 
-            // Read and print the server's welcome message
+            // Print server's welcome message
             String welcomeMessage = in.readLine();
-            System.out.println("Serwer: " + welcomeMessage);
+            System.out.println("Server: " + welcomeMessage);
 
+            // Initialize and start the menu system
             MenuSystem menuSystem = new MenuSystem(in, out, scanner);
             menuSystem.run();
 
         } catch (IOException e) {
-            System.err.println("Błąd podczas komunikacji z serwerem: " + e.getMessage());
+            System.err.println("Error during server communication: " + e.getMessage());
         }
     }
 }

@@ -18,7 +18,8 @@ public class Game {
     private final List<Player> players;
     private Type gameType;
 
-    public  enum Type {
+    // Enum to define game types
+    public enum Type {
         OPEN("Open"),
         CLOSE("Close");
 
@@ -33,19 +34,22 @@ public class Game {
         }
     }
 
+    // Initializes a new game instance with a host player
     public Game(Player host) {
         this.id = generateUniqueId();
         this.startTime = LocalDateTime.now();
         this.code = generateRandomCode();
         this.host = host;
         this.players = new ArrayList<>();
-        this.gameType = Type.OPEN; // Domyślnie ustawienie na OPEN
+        this.gameType = Type.OPEN; // Default setting to OPEN
     }
 
+    // Generates a unique game ID
     private String generateUniqueId() {
         return "GAME-" + System.currentTimeMillis();
     }
 
+    // Generates a random code for the game
     private String generateRandomCode() {
         Random random = new Random();
         StringBuilder codeBuilder = new StringBuilder(CODE_LENGTH);
@@ -55,6 +59,7 @@ public class Game {
         return codeBuilder.toString();
     }
 
+    // Adds a player to the game if it's not full
     public boolean addPlayer(Player player) {
         if (players.size() < MAX_PLAYERS) {
             players.add(player);
@@ -63,56 +68,71 @@ public class Game {
         return false;
     }
 
+    // Removes a player from the game
     public boolean removePlayer(Player player) {
         return players.remove(player);
     }
 
+    // Assigns a new host if the current host leaves
     public void assignNewHost() {
         if (!players.isEmpty()) {
-            host = players.get(0); // Najwcześniej dodany gracz
+            host = players.get(0); // Assigns the earliest added player as host
         } else {
-            host = null; // Brak graczy
+            host = null; // No players left
         }
     }
 
+    // Checks if the game has reached the maximum number of players
     public boolean isFull() {
         return players.size() >= MAX_PLAYERS;
     }
 
+    // Returns the display name of the game type
     public String getGameTypeDisplayName() {
         return gameType.getDisplayName();
     }
 
+    // Sets the game type
     public void setGameType(Type gameType) {
         this.gameType = gameType;
     }
 
+    // Getter for game ID
     public String getId() {
         return id;
     }
 
+    // Getter for game start time
     public LocalDateTime getStartTime() {
         return startTime;
     }
 
+    // Getter for game end time
     public LocalDateTime getEndTime() {
         return endTime;
     }
 
+    // Getter for game code
     public String getCode() {
         return code;
     }
 
+    // Getter for game host
     public Player getHost() {
         return host;
     }
 
+    // Getter for the list of players
     public List<Player> getPlayers() {
         return players;
     }
 
-    public Type getType() {return gameType;}
+    // Getter for game type
+    public Type getType() {
+        return gameType;
+    }
 
+    // Returns a list of player nicknames
     public List<String> getPlayerNicknames() {
         List<String> nicknames = new ArrayList<>();
         for (Player player : players) {
@@ -121,6 +141,7 @@ public class Game {
         return nicknames;
     }
 
+    // Sets the end time of the game
     public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;
     }

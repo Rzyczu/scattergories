@@ -1,14 +1,18 @@
 package org.example;
 
+import com.google.gson.JsonObject;
+
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class Game {
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final int CODE_LENGTH = 6;
     private static final int MAX_PLAYERS = 6;
+    private boolean roundInProgress = false;
+    private int roundNumber = 1;
+    private Timer responseTimer;
+    private final Map<Player, JsonObject> playerAnswers = Collections.synchronizedMap(new HashMap<>());
 
     private final String id;
     private final LocalDateTime startTime;
@@ -144,5 +148,56 @@ public class Game {
     // Sets the end time of the game
     public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;
+    }
+
+    // Starts a new round, clearing previous answers and setting the round as in progress
+    public synchronized void startRound() {
+        playerAnswers.clear();
+        roundInProgress = true;
+    }
+
+    // Ends the current round and increments the round number
+    public synchronized void endRound() {
+        roundInProgress = false;
+        if (responseTimer != null) {
+            responseTimer.cancel();
+        }
+        roundNumber++; // Move to the next round
+    }
+
+    // Adds a player's answer to the current round
+    public synchronized void addPlayerAnswer(Player player, JsonObject answers) {
+        playerAnswers.put(player, answers);
+    }
+
+    // Checks if it's the first answer in the round (to trigger the 5-second warning)
+    public synchronized boolean checkFirstAnswer() {
+        return playerAnswers.size() == 1;
+    }
+
+    // Returns the current round number
+    public int getRoundNumber() {
+        return roundNumber;
+    }
+
+    // Checks if a round is currently in progress
+    public synchronized boolean isRoundInProgress() {
+        return roundInProgress;
+    }
+
+    // Returns the player answers for the current round
+    public Map<Player, JsonObject> getPlayerAnswers() {
+        return playerAnswers;
+    }
+
+    // Starts a response timer (future functionality)
+    public void startResponseTimer(Runnable task, int delayMillis) {
+        responseTimer = new Timer();
+        responseTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                task.run();
+            }
+        }, delayMillis);
     }
 }

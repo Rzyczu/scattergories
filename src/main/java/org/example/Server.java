@@ -1,7 +1,7 @@
 package org.example;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.Gson;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -194,9 +194,10 @@ public class Server {
         private void handleStartGame() {
             if (currentGame != null && currentGame.getHost().equals(player)) {
                 if (currentGame.getPlayers().size() >= 2) {
+                    currentGame.startRound(); // start the round
                     broadcastGameStart();
                     System.out.println("Game started by " + player.getNickname());
-                    startNewRound(1);
+                    startNewRound(currentGame.getRoundNumber());
                 } else {
                     sendJsonMessage("error", "Game requires at least 2 players to start.");
                 }
@@ -247,7 +248,21 @@ public class Server {
         // Handles receiving answers from players and logging them
         private void handleSubmitAnswers(JsonObject jsonInput) {
             JsonObject answers = jsonInput.getAsJsonObject("answers");
+            currentGame.addPlayerAnswer(player, answers);
             System.out.println("Received answers from player " + player.getNickname() + ": " + answers.toString());
+
+            // Send 5-second warning to others if this is the first answer
+            if (currentGame.checkFirstAnswer()) {
+                JsonObject timerMessage = new JsonObject();
+                timerMessage.addProperty("action", "round_timer");
+                timerMessage.addProperty("message", "5 seconds left to submit answers!");
+
+                for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
+                    if (handler != this) {
+                        handler.out.println(timerMessage.toString());
+                    }
+                }
+            }
         }
     }
 }

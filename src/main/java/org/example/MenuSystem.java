@@ -6,9 +6,9 @@ import com.google.gson.reflect.TypeToken;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.Scanner;
-import java.util.List;
+import java.util.*;
 
 public class MenuSystem {
 
@@ -18,6 +18,7 @@ public class MenuSystem {
     private final Gson gson = new Gson();
     private boolean isHost = false;
     private boolean inGame = false;
+    private Map<String, String> playerAnswers = new HashMap<>();
 
     // Initializes MenuSystem with server input/output and user input
     public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
@@ -102,6 +103,9 @@ public class MenuSystem {
                             break;
                         case "categories":
                             handleCategories(jsonResponse);
+                            break;
+                        case "round_timer":
+                            handleRoundTimer();
                             break;
                         case "joined_game":
                         case "prompt_nickname":
@@ -194,39 +198,68 @@ public class MenuSystem {
         System.out.println("Round " + roundNumber + ". Chosen letter: " + letter);
     }
 
-    // Displays the categories for the current round and collects answers from the user
-    private void handleCategories(JsonObject jsonResponse) {
+    // Handles new round setup and category input
+    public void handleCategories(JsonObject jsonResponse) {
         List<String> categories = gson.fromJson(jsonResponse.get("categories"), new TypeToken<List<String>>() {}.getType());
+        playerAnswers.clear();
 
         System.out.println("Categories for this round:");
         for (String category : categories) {
             System.out.println("- " + category);
         }
 
-        JsonObject answers = new JsonObject();
-        System.out.println("Enter your answers for each category:");
+        System.out.println("You can answer any category in any order. Type the category name followed by your answer.");
+        System.out.println("Example: 'Country France'");
+        System.out.println("Type 'answer' when you are ready to submit all answers.");
 
-        try (Scanner inputScanner = new Scanner(System.in)) {
-            for (String category : categories) {
-                System.out.print(category + ": ");
-                if (inputScanner.hasNextLine()) {
-                    String answer = inputScanner.nextLine();
-                    answers.addProperty(category, answer);
-                } else {
-                    System.out.println("Error: No input data.");
-                    return;
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+
+        while (true) {
+            System.out.print("Your input: ");
+            try {
+                String input = reader.readLine();  // Odczytuje całą linię od użytkownika
+
+                if (input == null || input.trim().isEmpty()) {
+                    System.out.println("No input provided. Please try again.");
+                    continue;
                 }
+
+                if ("answer".equalsIgnoreCase(input.trim())) {
+                    submitAnswers();
+                    break;
+                }
+
+                String[] parts = input.split(" ", 2);
+                if (parts.length == 2 && categories.contains(parts[0])) {
+                    playerAnswers.put(parts[0], parts[1]);
+                    System.out.println("Recorded: " + parts[0] + " - " + parts[1]);
+                } else {
+                    System.out.println("Invalid input. Please enter a valid category and answer.");
+                }
+            } catch (IOException e) {
+                System.out.println("An error occurred while reading input. Please try again.");
+                break;
             }
-        } catch (Exception e) {
-            System.err.println("Error reading answers: " + e.getMessage());
-            return;
+        }
+    }
+
+    // Submits the player's answers to the server
+    private void submitAnswers() {
+        JsonObject answersJson = new JsonObject();
+        for (Map.Entry<String, String> entry : playerAnswers.entrySet()) {
+            answersJson.addProperty(entry.getKey(), entry.getValue());
         }
 
         JsonObject request = new JsonObject();
         request.addProperty("action", "submit_answers");
-        request.add("answers", answers);
+        request.add("answers", answersJson);
 
         out.println(gson.toJson(request));
         System.out.println("Answers have been submitted.");
+    }
+
+    // Handles round timer notification from the server
+    private void handleRoundTimer() {
+        System.out.println("Warning: 5 seconds left to submit answers!");
     }
 }

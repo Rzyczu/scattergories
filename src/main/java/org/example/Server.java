@@ -197,7 +197,7 @@ public class Server {
                     currentGame.startRound(); // start the round
                     broadcastGameStart();
                     System.out.println("Game started by " + player.getNickname());
-                    startNewRound(currentGame.getRoundNumber());
+                    startNewRound();
                 } else {
                     sendJsonMessage("error", "Game requires at least 2 players to start.");
                 }
@@ -218,8 +218,9 @@ public class Server {
         }
 
         // Starts a new game round and sends the chosen letter to all players
-        private void startNewRound(int roundNumber) {
-            char letter = (char) ('A' + new Random().nextInt(26));
+        private void startNewRound() {
+            char letter = currentGame.getCurrentLetter();
+            int roundNumber = currentGame.getRoundNumber();
 
             JsonObject message = new JsonObject();
             message.addProperty("action", "new_round");
@@ -251,18 +252,48 @@ public class Server {
             currentGame.addPlayerAnswer(player, answers);
             System.out.println("Received answers from player " + player.getNickname() + ": " + answers.toString());
 
-            // Send 5-second warning to others if this is the first answer
-            if (currentGame.checkFirstAnswer()) {
-                JsonObject timerMessage = new JsonObject();
-                timerMessage.addProperty("action", "round_timer");
-                timerMessage.addProperty("message", "5 seconds left to submit answers!");
-
-                for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
-                    if (handler != this) {
-                        handler.out.println(timerMessage.toString());
-                    }
-                }
+            // Sprawdzenie kompletności odpowiedzi
+            if (isRoundComplete()) {
+                processRoundScores();
+                endRound();
             }
+        }
+
+        // Funkcja sprawdza, czy wszyscy gracze udzielili odpowiedzi
+        private boolean isRoundComplete() {
+            return currentGame.getPlayerAnswers().size() == currentGame.getPlayers().size();
+        }
+
+        // Funkcja przetwarza wyniki rundy i aktualizuje wyniki graczy
+        private void processRoundScores() {
+            char startingLetter = currentGame.getCurrentLetter(); // 'letter' to wylosowana litera
+            Map<Player, Integer> roundScores = currentGame.calculateRoundScores(startingLetter);
+
+            sendRoundScores(roundScores, currentGame.getScores());  // Przesyłanie wyników
+        }
+
+        // Funkcja przesyła wyniki rundy do graczy
+        private void sendRoundScores(Map<Player, Integer> roundScores, Map<Player, Integer> totalScores) {
+            JsonObject resultsMessage = new JsonObject();
+            resultsMessage.addProperty("action", "results");
+
+            JsonObject scoresJson = new JsonObject();
+            for (Map.Entry<Player, Integer> entry : totalScores.entrySet()) {
+                String nickname = entry.getKey().getNickname();
+                int totalScore = entry.getValue();
+                scoresJson.addProperty(nickname, totalScore);
+            }
+            resultsMessage.add("scores", scoresJson);
+
+            for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
+                handler.out.println(resultsMessage.toString());
+            }
+        }
+
+        // Funkcja kończy rundę i czyści odpowiedzi graczy
+        private void endRound() {
+            currentGame.endRound();
+            System.out.println("Round ended and scores have been sent to all players.");
         }
     }
 }

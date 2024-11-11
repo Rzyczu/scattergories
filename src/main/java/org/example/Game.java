@@ -13,6 +13,8 @@ public class Game {
     private int roundNumber = 1;
     private Timer responseTimer;
     private final Map<Player, JsonObject> playerAnswers = Collections.synchronizedMap(new HashMap<>());
+    private final Map<Player, Integer> scores = new HashMap<>();
+    private char currentLetter;
 
     private final String id;
     private final LocalDateTime startTime;
@@ -154,6 +156,8 @@ public class Game {
     public synchronized void startRound() {
         playerAnswers.clear();
         roundInProgress = true;
+        char letter = (char) ('A' + new Random().nextInt(26));
+        currentLetter = letter;
     }
 
     // Ends the current round and increments the round number
@@ -199,5 +203,61 @@ public class Game {
                 task.run();
             }
         }, delayMillis);
+    }
+
+    // Metoda do obliczania wyników rundy i aktualizacji wyników ogólnych
+    public Map<Player, Integer> calculateRoundScores(char startingLetter) {
+        Map<Player, Integer> roundScores = new HashMap<>();
+
+        // Wstępna inicjalizacja wyników dla wszystkich graczy w rundzie
+        for (Player player : players) {
+            roundScores.put(player, 0);
+        }
+
+        // Przechodzimy przez każdą kategorię
+        for (String category : playerAnswers.values().stream().findFirst().orElse(new JsonObject()).keySet()) {
+            Map<String, List<Player>> answerGroups = new HashMap<>();
+
+            // Grupowanie odpowiedzi na podstawie kategorii
+            for (Map.Entry<Player, JsonObject> entry : playerAnswers.entrySet()) {
+                Player player = entry.getKey();
+                String answer = entry.getValue().has(category) ? entry.getValue().get(category).getAsString() : "";
+
+                // Sprawdzanie, czy odpowiedź zaczyna się na wylosowaną literę
+                if (answer.isEmpty() || answer.charAt(0) != startingLetter) {
+                    continue; // Nieprawidłowa odpowiedź
+                }
+
+                answerGroups.computeIfAbsent(answer, k -> new ArrayList<>()).add(player);
+            }
+
+            // Obliczanie punktów na podstawie grup odpowiedzi
+            for (Map.Entry<String, List<Player>> group : answerGroups.entrySet()) {
+                List<Player> playersWithSameAnswer = group.getValue();
+                int points = playersWithSameAnswer.size() == 1 ? 2 : 1; // Unikatowa odpowiedź = 2 punkty, powtórzona = 1 punkt
+
+                for (Player player : playersWithSameAnswer) {
+                    roundScores.put(player, roundScores.get(player) + points);
+                }
+            }
+        }
+
+        // Aktualizacja łącznych wyników dla każdego gracza
+        for (Map.Entry<Player, Integer> entry : roundScores.entrySet()) {
+            Player player = entry.getKey();
+            int roundScore = entry.getValue();
+            scores.put(player, scores.getOrDefault(player, 0) + roundScore); // Sumowanie punktów
+        }
+
+        return roundScores; // Zwracamy wyniki za bieżącą rundę
+    }
+
+    // Getter dla wyników graczy
+    public Map<Player, Integer> getScores() {
+        return scores;
+    }
+
+    public char getCurrentLetter() {
+        return currentLetter;
     }
 }

@@ -107,6 +107,9 @@ public class MenuSystem {
                         case "round_timer":
                             handleRoundTimer();
                             break;
+                        case "results":
+                            handleResults(jsonResponse);
+                            break;
                         case "joined_game":
                         case "prompt_nickname":
                         case "welcome":
@@ -261,5 +264,15 @@ public class MenuSystem {
     // Handles round timer notification from the server
     private void handleRoundTimer() {
         System.out.println("Warning: 5 seconds left to submit answers!");
+    }
+
+    private void handleResults(JsonObject jsonResponse) {
+        JsonObject scores = jsonResponse.getAsJsonObject("scores");
+
+        System.out.println("Current Scores:");
+        for (String player : scores.keySet()) {
+            int score = scores.get(player).getAsInt();
+            System.out.println(player + ": " + score + " points");
+        }
     }
 }

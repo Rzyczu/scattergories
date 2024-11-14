@@ -110,6 +110,8 @@ public class MenuSystem {
                         case "results":
                             handleResults(jsonResponse);
                             break;
+                        case "game_over":
+                            handleGameOver(jsonResponse);
                         case "joined_game":
                         case "prompt_nickname":
                         case "welcome":
@@ -270,6 +272,16 @@ public class MenuSystem {
         JsonObject scores = jsonResponse.getAsJsonObject("scores");
 
         System.out.println("Current Scores:");
+        for (String player : scores.keySet()) {
+            int score = scores.get(player).getAsInt();
+            System.out.println(player + ": " + score + " points");
+        }
+    }
+
+    private void handleGameOver(JsonObject jsonResponse) {
+        JsonObject scores = jsonResponse.getAsJsonObject("scores");
+
+        System.out.println("Game Over! Final Scores:");
         for (String player : scores.keySet()) {
             int score = scores.get(player).getAsInt();
             System.out.println(player + ": " + score + " points");

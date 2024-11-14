@@ -9,8 +9,9 @@ public class Game {
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static final int CODE_LENGTH = 6;
     private static final int MAX_PLAYERS = 6;
+    private static final int ROUND_LIMIT = 3;
     private boolean roundInProgress = false;
-    private int roundNumber = 1;
+    private int currentRound  = 0;
     private Timer responseTimer;
     private final Map<Player, JsonObject> playerAnswers = Collections.synchronizedMap(new HashMap<>());
     private final Map<Player, Integer> scores = new HashMap<>();
@@ -153,11 +154,16 @@ public class Game {
     }
 
     // Starts a new round, clearing previous answers and setting the round as in progress
-    public synchronized void startRound() {
+    public synchronized boolean  startRound() {
+        if (currentRound >= ROUND_LIMIT) {
+            return false;
+        }
+
         playerAnswers.clear();
         roundInProgress = true;
-        char letter = (char) ('A' + new Random().nextInt(26));
-        currentLetter = letter;
+        currentRound ++;
+        currentLetter = (char) ('A' + new Random().nextInt(26));
+        return true;
     }
 
     // Ends the current round and increments the round number
@@ -166,7 +172,6 @@ public class Game {
         if (responseTimer != null) {
             responseTimer.cancel();
         }
-        roundNumber++; // Move to the next round
     }
 
     // Adds a player's answer to the current round
@@ -180,8 +185,8 @@ public class Game {
     }
 
     // Returns the current round number
-    public int getRoundNumber() {
-        return roundNumber;
+    public int getCurrentRound() {
+        return currentRound ;
     }
 
     // Checks if a round is currently in progress
@@ -249,7 +254,7 @@ public class Game {
             scores.put(player, scores.getOrDefault(player, 0) + roundScore); // Sumowanie punktów
         }
 
-        return roundScores; // Zwracamy wyniki za bieżącą rundę
+        return roundScores;
     }
 
     // Getter dla wyników graczy
@@ -260,4 +265,8 @@ public class Game {
     public char getCurrentLetter() {
         return currentLetter;
     }
+    public boolean isGameOver() {
+        return currentRound >= ROUND_LIMIT;
+    }
+
 }

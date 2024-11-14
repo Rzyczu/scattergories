@@ -194,7 +194,6 @@ public class Server {
         private void handleStartGame() {
             if (currentGame != null && currentGame.getHost().equals(player)) {
                 if (currentGame.getPlayers().size() >= 2) {
-                    currentGame.startRound(); // start the round
                     broadcastGameStart();
                     System.out.println("Game started by " + player.getNickname());
                     startNewRound();
@@ -219,19 +218,21 @@ public class Server {
 
         // Starts a new game round and sends the chosen letter to all players
         private void startNewRound() {
-            char letter = currentGame.getCurrentLetter();
-            int roundNumber = currentGame.getRoundNumber();
+            if (currentGame.startRound()) {
+                char letter = currentGame.getCurrentLetter();
+                int roundNumber = currentGame.getCurrentRound();
 
-            JsonObject message = new JsonObject();
-            message.addProperty("action", "new_round");
-            message.addProperty("round_number", roundNumber);
-            message.addProperty("letter", String.valueOf(letter));
+                JsonObject message = new JsonObject();
+                message.addProperty("action", "new_round");
+                message.addProperty("round_number", roundNumber);
+                message.addProperty("letter", String.valueOf(letter));
 
-            for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
-                handler.out.println(message.toString());
+                for (ClientHandler handler : getAllHandlersInGame(currentGame)){
+                    handler.out.println(message.toString());
+                }
+
+                sendCategoriesToPlayers();
             }
-
-            sendCategoriesToPlayers();
         }
 
         // Sends the categories for the current round to all players
@@ -252,11 +253,31 @@ public class Server {
             currentGame.addPlayerAnswer(player, answers);
             System.out.println("Received answers from player " + player.getNickname() + ": " + answers.toString());
 
-            // Sprawdzenie kompletności odpowiedzi
             if (isRoundComplete()) {
                 processRoundScores();
-                endRound();
+
+                if (currentGame.isGameOver()) {
+                    sendFinalScores();
+                } else {
+                    startNewRound(); // Rozpocznij następną rundę
+                }
             }
+        }
+
+        private void sendFinalScores() {
+            JsonObject finalScoresMessage = new JsonObject();
+            finalScoresMessage.addProperty("action", "game_over");
+            JsonObject finalScoresJson = new JsonObject();
+
+            for (Map.Entry<Player, Integer> entry : currentGame.getScores().entrySet()) {
+                finalScoresJson.addProperty(entry.getKey().getNickname(), entry.getValue());
+            }
+            finalScoresMessage.add("scores", finalScoresJson);
+
+            for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
+                handler.out.println(finalScoresMessage.toString());
+            }
+            System.out.println("Game over. Final scores sent to all players.");
         }
 
         // Funkcja sprawdza, czy wszyscy gracze udzielili odpowiedzi

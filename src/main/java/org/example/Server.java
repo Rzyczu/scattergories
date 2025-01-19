@@ -99,6 +99,17 @@ public class Server {
                     JsonObject jsonInput = gson.fromJson(inputLine, JsonObject.class);
                     String action = jsonInput.get("action").getAsString();
 
+                    jsonInput.addProperty("ip", clientSocket.getInetAddress().toString());
+                    if(player != null){
+                        jsonInput.addProperty("nickname",player.getNickname());
+                    }
+
+                    if (currentGame != null) {
+                        log(currentGame.getCode() + ": " + jsonInput.toString());
+                    } else {
+                        log(jsonInput.toString());
+                    }
+
                     switch (action) {
                         case "create_game":
                             handleCreateGame(jsonInput);

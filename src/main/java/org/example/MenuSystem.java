@@ -18,6 +18,7 @@ public class MenuSystem {
     private final Gson gson = new Gson();
     private boolean isHost = false;
     private Map<String, String> playerAnswers = new HashMap<>();
+    private boolean inGame = false;
 
     // Initializes MenuSystem with server input/output and user input
     public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
@@ -30,43 +31,46 @@ public class MenuSystem {
     // Main run loop for displaying the menu and processing user choices
     public void run() {
         while (true) {
+            if (!inGame) {
                 System.out.println("Landing Page:");
-                System.out.println("1. Create game");
-                System.out.println("2. Join game");
-                if (isHost) {
-                    System.out.println("'start' - Start the game");
-                }
-                System.out.print("Choose an option (1 or 2, 'exit' to quit): ");
-                String choice = scanner.nextLine();
+            System.out.println("1. Create game");
+            System.out.println("2. Join game");
+            if (isHost) {
+                System.out.println("'start' - Start the game");
+            }
+            System.out.print("Choose an option (1 or 2, 'exit' to quit): ");
+            String choice = scanner.nextLine();
 
-                if ("exit".equalsIgnoreCase(choice)) {
-                    sendExitRequest();
+            if ("exit".equalsIgnoreCase(choice)) {
+                sendExitRequest();
+                break;
+            }
+
+            switch (choice) {
+                case "1":
+                    handleCreateGame();
                     break;
-                }
-
-                switch (choice) {
-                    case "1":
-                        handleCreateGame();
-                        break;
-                    case "2":
-                        handleJoinGame();
-                        break;
-                    case "start":
-                        if (isHost) {
-                            JsonObject request = new JsonObject();
-                            request.addProperty("action", "start_game");
-                            out.println(gson.toJson(request));
-                        } else {
-                            System.out.println("Only the host can start the game.");
-                        }
-                        break;
-                    default:
-                        System.out.println("Invalid choice.");
-                }
+                case "2":
+                    handleJoinGame();
+                    break;
+                case "start":
+                    if (isHost) {
+                        JsonObject request = new JsonObject();
+                        request.addProperty("action", "start_game");
+                        out.println(gson.toJson(request));
+                    } else {
+                        System.out.println("Only the host can start the game.");
+                    }
+                    break;
+                default:
+                    System.out.println("Invalid choice.");
+            }
+            } else {
                 try {
-                    Thread.sleep(100); // Small delay to prevent excessive loop speed
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                Thread.sleep(100); // Small delay to prevent excessive loop speed
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             }
         }
     }

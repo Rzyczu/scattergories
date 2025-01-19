@@ -1,16 +1,19 @@
 package org.example;
 
-import com.google.gson.JsonObject;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 
-public class MenuSystem {
+public class MenuSystemB {
 
     private final BufferedReader in;
     private final PrintWriter out;
@@ -18,9 +21,10 @@ public class MenuSystem {
     private final Gson gson = new Gson();
     private boolean isHost = false;
     private Map<String, String> playerAnswers = new HashMap<>();
+    private volatile boolean running = true;
 
     // Initializes MenuSystem with server input/output and user input
-    public MenuSystem(BufferedReader in, PrintWriter out, Scanner scanner) {
+    public MenuSystemB(BufferedReader in, PrintWriter out, Scanner scanner) {
         this.in = in;
         this.out = out;
         this.scanner = scanner;
@@ -30,6 +34,7 @@ public class MenuSystem {
     // Main run loop for displaying the menu and processing user choices
     public void run() {
         while (true) {
+            if (running) {
                 System.out.println("Landing Page:");
                 System.out.println("1. Create game");
                 System.out.println("2. Join game");
@@ -41,7 +46,8 @@ public class MenuSystem {
 
                 if ("exit".equalsIgnoreCase(choice)) {
                     sendExitRequest();
-                    break;
+                    stop(); // Ustawia running = false
+                    break;  // Natychmiast wychodzi z pętli
                 }
 
                 switch (choice) {
@@ -61,14 +67,24 @@ public class MenuSystem {
                         }
                         break;
                     default:
-                        System.out.println("Invalid choice.");
+                        if (running) { // Tylko jeśli pętla ma kontynuować
+                            System.out.println("Invalid choice.");
+                        }
                 }
-                try {
-                    Thread.sleep(100); // Small delay to prevent excessive loop speed
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
+                if (!running) {
+                    break; // Opuszczamy pętlę, jeśli running = false
+                }
+            }
+            try {
+                Thread.sleep(100); // Small delay to prevent excessive loop speed
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
         }
+    }
+
+    public void stop() {
+        running = false;
     }
 
     // Starts a separate thread to listen to server responses
@@ -93,6 +109,7 @@ public class MenuSystem {
                             break;
                         case "game_started":
                             System.out.println("Server: " + jsonResponse.get("message").getAsString());
+                            stop();
                             break;
                         case "new_round":
                             handleNewRound(jsonResponse);

@@ -1,5 +1,8 @@
 package org.example;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -21,15 +24,28 @@ public class Client {
              Scanner scanner = new Scanner(System.in)) {
 
             System.out.println("Connected to server.");
-            System.out.println("Server: " + in.readLine());
+            String serverMessage = in.readLine();
+            if (serverMessage != null) {
+                JsonObject jsonResponse = new Gson().fromJson(serverMessage, JsonObject.class);
+                String action = jsonResponse.get("action").getAsString();
+                String message = jsonResponse.get("message").getAsString();
+
+                System.out.println("Server (" + action + "): " + message);
+            }
 
             // Requesting nickname from user
             String nickname = scanner.nextLine();
             out.println(nickname);
 
             // Print server's welcome message
-            String welcomeMessage = in.readLine();
-            System.out.println("Server: " + welcomeMessage);
+            serverMessage = in.readLine();
+            if (serverMessage != null) {
+                JsonObject jsonResponse = new Gson().fromJson(serverMessage, JsonObject.class);
+                String action = jsonResponse.get("action").getAsString();
+                String message = jsonResponse.get("message").getAsString();
+
+                System.out.println("Server (" + action + "): " + message);
+            }
 
             // Initialize and start the menu system
             MenuSystem menuSystem = new MenuSystem(in, out, scanner);

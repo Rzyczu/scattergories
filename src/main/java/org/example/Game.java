@@ -51,6 +51,7 @@ public class Game {
         this.gameType = Type.OPEN; // Default setting to OPEN
     }
 
+
     // Generates a unique game ID
     private String generateUniqueId() {
         return "GAME-" + System.currentTimeMillis();

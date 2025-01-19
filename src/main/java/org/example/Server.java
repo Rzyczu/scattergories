@@ -3,13 +3,15 @@ package org.example;
 import com.google.gson.JsonObject;
 import com.google.gson.Gson;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.Connection;
+import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
+
 
 public class Server {
 
@@ -18,6 +20,22 @@ public class Server {
     private static final Gson gson = new Gson();
     private static final List<ClientHandler> allHandlers = Collections.synchronizedList(new ArrayList<>());
     private static final List<String> categoriesList = List.of("Country", "City", "Animal", "Plant", "Food");
+    private static final String LOG_FILE = "server_logs.txt";
+    private static final String DB_URL = "jdbc:sqlite:game_results.db";
+
+    static {
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement()) {
+            String createTable = "CREATE TABLE IF NOT EXISTS GameResults (" +
+                    "game_code TEXT, " +
+                    "player_nickname TEXT, " +
+                    "score INTEGER, " +
+                    "PRIMARY KEY (game_code, player_nickname))";
+            stmt.execute(createTable);
+        } catch (SQLException e) {
+            System.err.println("Error creating database: " + e.getMessage());
+        }
+    }
 
     // Entry point for starting the server
     public static void main(String[] args) {
@@ -34,6 +52,17 @@ public class Server {
             }
         } catch (IOException e) {
             System.err.println("Error starting server: " + e.getMessage());
+        }
+    }
+
+    private static synchronized void log(String message) {
+        try (FileWriter fw = new FileWriter(LOG_FILE, true);
+             BufferedWriter bw = new BufferedWriter(fw);
+             PrintWriter out = new PrintWriter(bw)) {
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            out.println("[" + timestamp + "] " + message);
+        } catch (IOException e) {
+            System.err.println("Failed to write to log file: " + e.getMessage());
         }
     }
 
@@ -63,6 +92,7 @@ public class Server {
                 player = new Player(nickname, ip);
 
                 sendJsonMessage("welcome", "Welcome, " + player.getNickname() + "!");
+                log("New connection: " + clientSocket.getInetAddress() + ", " + player.getNickname());
 
                 String inputLine;
                 while ((inputLine = in.readLine()) != null) {
@@ -94,13 +124,16 @@ public class Server {
                 }
 
                 System.out.println("Closing connection with client: " + player.getNickname());
+                log("Closing connection with client: " + player.getNickname());
             } catch (IOException e) {
                 System.err.println("Communication error with client: " + e.getMessage());
+                log("Communication error with client: " + e.getMessage());
             } finally {
                 try {
                     clientSocket.close();
                 } catch (IOException e) {
                     System.err.println("Error closing connection: " + e.getMessage());
+                    log("Error closing connection: " + e.getMessage());
                 }
             }
         }
@@ -117,7 +150,7 @@ public class Server {
                 sendJsonMessage("game_created", "Created a new game (" + gameType + ") with code: " + currentGame.getCode());
                 sendJsonMessage("lobby", "Moved to Lobby. Waiting for other players...");
 
-                System.out.println("Game created by " + player.getNickname() + " with code: " + currentGame.getCode());
+                System.out.println(currentGame.getCode()+ ": Game created by " + player.getNickname());
                 broadcastPlayerList();
             } else {
                 sendJsonMessage("error", "Unable to create game.");
@@ -133,7 +166,7 @@ public class Server {
                     sendJsonMessage("joined_game", "Joined a random game: " + game.getCode());
                     sendJsonMessage("lobby", "Moved to Lobby. Waiting to start...");
 
-                    System.out.println(player.getNickname() + " joined the game: " + game.getCode());
+                    System.out.println(game.getCode() + ": " + player.getNickname() + " joined the game");
                     broadcastPlayerList();
                     return;
                 }
@@ -150,7 +183,7 @@ public class Server {
                 if (currentGame.addPlayer(player)) {
                     sendJsonMessage("joined_game", "Joined the game: " + gameCode);
                     sendJsonMessage("lobby", "Moved to Lobby. Waiting to start...");
-                    System.out.println(player.getNickname() + " joined the game: " + gameCode);
+                    System.out.println(currentGame.getCode() + ": " + player.getNickname() + " joined the game");
                     broadcastPlayerList();
                 } else {
                     sendJsonMessage("error", "Game is full.");
@@ -175,8 +208,19 @@ public class Server {
         private void sendJsonMessage(String action, String message) {
             JsonObject jsonMessage = new JsonObject();
             jsonMessage.addProperty("action", action);
+            jsonMessage.addProperty("ip", clientSocket.getInetAddress().toString());
+            if(player != null){
+                jsonMessage.addProperty("nickname",player.getNickname());
+            }
             jsonMessage.addProperty("message", message);
+
             out.println(jsonMessage.toString());
+
+            if (currentGame != null) {
+                log(currentGame.getCode() + ": " + jsonMessage.toString());
+            } else {
+                log(jsonMessage.toString());
+            }
         }
 
         // Gets all client handlers for the current game
@@ -195,7 +239,7 @@ public class Server {
             if (currentGame != null && currentGame.getHost().equals(player)) {
                 if (currentGame.getPlayers().size() >= 2) {
                     broadcastGameStart();
-                    System.out.println("Game started by " + player.getNickname());
+                    System.out.println(currentGame.getCode() + ": " + "Game started by " + player.getNickname());
                     startNewRound();
                 } else {
                     sendJsonMessage("error", "Game requires at least 2 players to start.");
@@ -231,6 +275,8 @@ public class Server {
                     handler.out.println(message.toString());
                 }
 
+                System.out.println(currentGame.getCode() + ": " + "New round has started.");
+
                 sendCategoriesToPlayers();
             }
         }
@@ -244,14 +290,14 @@ public class Server {
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(message.toString());
             }
-            System.out.println("Categories have been sent to players.");
+            System.out.println(currentGame.getCode() + ": " + "Categories have been sent to players.");
         }
 
         // Handles receiving answers from players and logging them
         private void handleSubmitAnswers(JsonObject jsonInput) {
             JsonObject answers = jsonInput.getAsJsonObject("answers");
             currentGame.addPlayerAnswer(player, answers);
-            System.out.println("Received answers from player " + player.getNickname() + ": " + answers.toString());
+            System.out.println(currentGame.getCode() + ": " + "Received answers from player " + player.getNickname() + ": " + answers.toString());
 
             if (isRoundComplete()) {
                 processRoundScores();
@@ -269,16 +315,36 @@ public class Server {
             finalScoresMessage.addProperty("action", "game_over");
             JsonObject finalScoresJson = new JsonObject();
 
-            for (Map.Entry<Player, Integer> entry : currentGame.getScores().entrySet()) {
-                finalScoresJson.addProperty(entry.getKey().getNickname(), entry.getValue());
+            try (Connection conn = DriverManager.getConnection(DB_URL);
+                 PreparedStatement pstmt = conn.prepareStatement(
+                         "INSERT OR REPLACE INTO GameResults (game_code, player_nickname, score) VALUES (?, ?, ?)")) {
+                for (Map.Entry<Player, Integer> entry : currentGame.getScores().entrySet()) {
+                    String nickname = entry.getKey().getNickname();
+                    int score = entry.getValue();
+
+                    // Dodanie wyniku do JSON
+                    finalScoresJson.addProperty(nickname, score);
+
+                    // Zapisanie wyniku do bazy danych
+                    pstmt.setString(1, currentGame.getCode());
+                    pstmt.setString(2, nickname);
+                    pstmt.setInt(3, score);
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+            } catch (SQLException e) {
+                log("Error saving scores to database: " + e.getMessage());
             }
+
             finalScoresMessage.add("scores", finalScoresJson);
 
+            // Wysyłanie wyników do graczy
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(finalScoresMessage.toString());
             }
-            System.out.println("Game over. Final scores sent to all players.");
+            log(currentGame.getCode() + ": Game over. Final scores sent to all players.");
         }
+
 
         // Funkcja sprawdza, czy wszyscy gracze udzielili odpowiedzi
         private boolean isRoundComplete() {
@@ -309,12 +375,6 @@ public class Server {
             for (ClientHandler handler : getAllHandlersInGame(currentGame)) {
                 handler.out.println(resultsMessage.toString());
             }
-        }
-
-        // Funkcja kończy rundę i czyści odpowiedzi graczy
-        private void endRound() {
-            currentGame.endRound();
-            System.out.println("Round ended and scores have been sent to all players.");
         }
     }
 }
